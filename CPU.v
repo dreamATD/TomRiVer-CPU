@@ -173,7 +173,6 @@ module CPU (
         // with CDB
         .cdb_in_index (cdb_alu_index),
         .cdb_in_result (cdb_alu_result),
-        .cdb_in_done (cdb_alu_done),
         .cdb_out_valid (alu_cdb_valid),
         .cdb_out_index (alu_cdb_index),
         .cdb_out_result (alu_cdb_result)
@@ -183,18 +182,17 @@ module CPU (
         .clk (clk),
         .rst (rst),
         // with ALU
-        .alu_out_index (cdb_alu_index),
-        .alu_out_result (cdb_alu_result),
-        .alu_done (cdb_alu_done),
+        .alu_out_index_alu (cdb_alu_index),
+        .alu_out_result_alu (cdb_alu_result),
         .alu_in_valid (alu_cdb_valid),
         .alu_in_index (alu_cdb_index),
         .alu_in_result (alu_cdb_result),
         // with Load
         // with Store
         // with ROB
-        .rob_write (cdb_rob_write),
-        .rob_out_entry (cdb_rob_out_entry),
-        .rob_out_value (cdb_rob_out_value)
+        .rob_write_alu (cdb_rob_write),
+        .rob_out_entry_alu (cdb_rob_out_entry),
+        .rob_out_value_alu (cdb_rob_out_value)
     );
 
     ROB rob0 (

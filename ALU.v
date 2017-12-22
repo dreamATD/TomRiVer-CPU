@@ -30,7 +30,6 @@ module ALU (
     // with CDB
     input  [`Reg_Lock_Width-1 : 0] cdb_in_index,
     input  [`Data_Width-1     : 0] cdb_in_result,
-    input cdb_in_done,
     output reg cdb_out_valid,
     output reg [`Reg_Lock_Width-1 : 0] cdb_out_index,
     output reg [`Data_Width-1     : 0] cdb_out_result
@@ -88,6 +87,7 @@ module ALU (
             end
             cdb_out_valid <= 0;
         end else begin
+            queue[find_min[0]] <= {`Alu_Bus_Width{1'b0}};
             if (alu_enable && queue[find_empty[0]][`Alu_Op_Interval] == `NOP) begin
                 queue[find_empty[0]] <= alu_bus;
             end
@@ -117,13 +117,6 @@ module ALU (
         end else begin
             //$display ("valid to 0!");
             cdb_out_valid <= 0;
-        end
-    end
-
-    always @ (posedge clk) begin
-        if (cdb_in_done) begin
-            $display ("queue_min to %b!, valid to %b", {`Alu_Bus_Width{1'b0}}, cdb_out_valid);
-            queue[find_min[0]] <= {`Alu_Bus_Width{1'b0}};
         end
     end
 

@@ -24,20 +24,24 @@ module CDB(
     input clk,
     input rst,
     // with ALU
-    output reg [`Reg_Lock_Width-1 : 0] alu_out_index,
-    output reg [`Data_Width-1     : 0] alu_out_result,
-    output reg alu_done,
+    output [`Reg_Lock_Width-1 : 0] alu_out_index_alu,
+    output [`Data_Width-1     : 0] alu_out_result_alu,
     input alu_in_valid,
     input [`Reg_Lock_Width-1 : 0] alu_in_index,
     input [`Data_Width-1     : 0] alu_in_result,
     // with Load
     // with Store
     // with ROB
-    output reg rob_write,
-    output reg [`ROB_Entry_Width-1 : 0] rob_out_entry,
-    output reg [`Data_Width-1      : 0] rob_out_value
+    output rob_write_alu,
+    output [`ROB_Entry_Width-1 : 0] rob_out_entry_alu,
+    output [`Data_Width-1      : 0] rob_out_value_alu
 );
-
+    assign alu_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
+    assign alu_out_result_alu = alu_in_valid ? alu_in_result : 0;
+    assign rob_write_alu = alu_in_valid;
+    assign rob_out_entry_alu = alu_in_index;
+    assign rob_out_value_alu = alu_in_result;
+/*
     always @ (posedge clk) begin
         if (rst) begin
             alu_out_index  <= `Reg_No_Lock;
@@ -63,4 +67,5 @@ module CDB(
             end
         end
     end
+*/
 endmodule
