@@ -25,6 +25,7 @@
 `define Reg_No_Lock         4'b1000
 `define Alu_Bus_Width       (`Simp_Op_Width + `Reg_Lock_Width + `Reg_Lock_Width + `ROB_Entry_Width + `Data_Width + `Data_Width)
 `define Alu_Rdlock_Interval `ROB_Entry_Width-1:0
+`define Alu_Data2_Low5      (`ROB_Entry_Width+4):`ROB_Entry_Width
 `define Alu_Data2_Interval  (`Data_Width+`ROB_Entry_Width-1):`ROB_Entry_Width
 `define Alu_Lock2_Interval  (`Reg_Lock_Width+`ROB_Entry_Width+`Data_Width-1):(`Data_Width+`ROB_Entry_Width)
 `define Alu_Data1_Interval  (`Data_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width-1):(`Reg_Lock_Width+`ROB_Entry_Width+`Data_Width)
@@ -46,8 +47,17 @@
 `define Simp_Op_Width       6
 `define Class_Opcode_NOP    7'b0000000
 `define Op_Imm              7'b0010011
+`define Op_                 7'b0110011
 
-`define NOP                 6'd0
-`define ADDI                6'd19
-`define ORI                 6'd23
+`define NOP                 6'b000000
+`define ADD                 6'b000001
+`define SUB                 6'b000010
+`define SLT                 6'b000011
+`define SLTU                6'b000100
+`define XOR                 6'b000101
+`define OR                  6'b000110
+`define AND                 6'b000111
+`define SLL                 6'b001000
+`define SRL                 6'b001001
+`define SRA                 6'b001010
 `endif

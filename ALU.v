@@ -100,19 +100,25 @@ module ALU (
             queue[find_min[0]][`Alu_Lock1_Interval] == `Reg_No_Lock &&
             queue[find_min[0]][`Alu_Lock2_Interval] == `Reg_No_Lock
         ) begin
+            if (queue[find_min[0]][`Alu_Op_Interval] == `NOP) begin
+                cdb_out_valid <= 0;
+            end else begin
+                cdb_out_valid <= 1;
+                cdb_out_index <= queue[find_min[0]][`Alu_Rdlock_Interval];
+            end
             //$display ("op: %b, ORI: %b, cdb_out_valid: %b\n", queue[find_min[0]], `ORI, cdb_out_valid);
             case (queue[find_min[0]][`Alu_Op_Interval])
-                `ORI : begin
-                    //$display("alu doing");
-                    cdb_out_valid <= 1;
-                    cdb_out_result <= (queue[find_min[0]][`Alu_Data1_Interval] | queue[find_min[0]][`Alu_Data2_Interval]);
-                    cdb_out_index <= queue[find_min[0]][`Alu_Rdlock_Interval];
-
-                end
-                default: begin
-                    //$display ("???");
-                    cdb_out_valid <= 0;
-                end
+                `ADD  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) + $signed(queue[find_min[0]][`Alu_Data2_Interval]);
+                `SUB  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) - $signed(queue[find_min[0]][`Alu_Data2_Interval]);
+                `SLT  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) < $signed(queue[find_min[0]][`Alu_Data2_Interval]) ? 1 : 0;
+                `SLTU : cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) <        (queue[find_min[0]][`Alu_Data2_Interval]) ? 1 : 0;
+                `XOR  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) ^ $signed(queue[find_min[0]][`Alu_Data2_Interval]);
+                `OR   : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) | $signed(queue[find_min[0]][`Alu_Data2_Interval]);
+                `AND  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) & $signed(queue[find_min[0]][`Alu_Data2_Interval]);
+                `SLL  : cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) <<       (queue[find_min[0]][`Alu_Data2_Low5]);
+                `SRL  : cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) >>       (queue[find_min[0]][`Alu_Data2_Low5]);
+                `SRA  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) >>       (queue[find_min[0]][`Alu_Data2_Low5]);
+                default: ;
             endcase
         end else begin
             //$display ("valid to 0!");

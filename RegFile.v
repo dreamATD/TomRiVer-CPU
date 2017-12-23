@@ -89,8 +89,8 @@ module RegFile (
                 data2 <= dataw;
                 lock2 <= entryw;
             end else begin
-                lock2 <= loc[name1];
-                data2 <= dat[name1];
+                lock2 <= loc[name2];
+                data2 <= dat[name2];
             end
         end else begin
             lock2 <= `Reg_No_Lock;

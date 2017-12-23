@@ -99,6 +99,7 @@ module ROB(
                 end
                 2'b10: begin
                     counter  <= counter-1;
+                    ram[read_ptr] <= 0;
                     read_ptr <= read_ptr + 1;
                 end
                 2'b11: begin
@@ -107,6 +108,7 @@ module ROB(
                     else begin
                         ram[write_ptr] <= fifo_in;
                         write_ptr <= write_ptr + 1;
+                        ram[read_ptr] <= 0;
                         read_ptr  <= read_ptr + 1;
                     end
                 end

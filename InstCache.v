@@ -26,9 +26,9 @@ module InstCache(
     output reg [`Inst_Width-1 : 0] inst,
     output reg cache_enable
 );
-    reg [`Inst_Width-1 : 0] inst_mem[0:25];
+    reg [`Inst_Width-1 : 0] inst_mem[0:127];
 
-    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test2.data", inst_mem);
+    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test4.data", inst_mem);
 
     always @ (*) begin
         if (!ce) begin

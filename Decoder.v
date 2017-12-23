@@ -93,8 +93,16 @@ module Decoder (
     assign func7 = inst_in[`Func7_Interval];
     assign op = inst_in[`Opcode_Interval];
     assign simp_op = (
-        op == `Op_Imm && func3 == 3'b000 ? `ADDI :
-        op == `Op_Imm && func3 == 3'b110 ? `ORI  :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b000 ? `ADD :
+        (                 op == `Op_ && func7 == 7'b0100000) && func3 == 3'b000 ? `SUB :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b010 ? `SLT :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b011 ? `SLTU :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b100 ? `XOR :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b110 ? `OR  :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b111 ? `AND :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b001 ? `SLL :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b101 ? `SRL :
+        (op == `Op_Imm || op == `Op_ && func7 == 7'b0100000) && func3 == 3'b101 ? `SRA :
                                   0
     );
 
@@ -143,6 +151,26 @@ module Decoder (
                             simp_op,
                             lock1, data1,
                             `Reg_No_Lock, {{(`Data_Width-`Imm_Width){imm1[`Imm_Width-1]}},imm1},
+                            rob_rd_lock
+                        };
+                        rob_bus <= {
+                            Normal_Op,
+                            {{(`Addr_Width-`Reg_Width){1'b0}}, rd},
+                            {`Data_Width{1'b0}}, 1'b0
+                        };
+                        reg_bus <= {
+                            rd, rob_rd_lock
+                        };
+                    end
+                    `Op_ : begin
+                        //{alu_enable, ld_enable, st_enable} <= 3'b100;
+                        alu_write <= 1;
+                        reg_write <= 1;
+                        rob_write <= 1;
+                        alu_bus   <= {
+                            simp_op,
+                            lock1, data1,
+                            lock2, data2,
                             rob_rd_lock
                         };
                         rob_bus <= {
