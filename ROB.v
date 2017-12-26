@@ -143,7 +143,7 @@ module ROB(
 
     integer i;
     always @ (*) begin
-        if (cdb_write) begin
+        if (cdb_write && !ram[cdb_in_entry][`ROB_Valid_Interval]) begin
             ram[cdb_in_entry][`ROB_Valid_Interval] <= 1;
             ram[cdb_in_entry][`ROB_Value_Interval] <= cdb_in_value;
         end
