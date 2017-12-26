@@ -25,14 +25,14 @@ module ALU (
     // with Decoder
     output alu_stall,
     input alu_enable,
-    input [`Alu_Bus_Width-1:0] alu_bus,
+    input [`Alu_Bus_Width-1   : 0] alu_bus,
 
     // with CDB
     input  [`Reg_Lock_Width-1 : 0] cdb_in_index,
     input  [`Data_Width-1     : 0] cdb_in_result,
     output reg cdb_out_valid,
-    output reg [`Reg_Lock_Width-1 : 0] cdb_out_index,
-    output reg [`Data_Width-1     : 0] cdb_out_result
+    output reg [`Reg_Lock_Width-1  : 0] cdb_out_index,
+    output reg [`Data_Width-1      : 0] cdb_out_result
 );
 
     localparam  Alu_Queue_Entry         = 4;
@@ -100,7 +100,7 @@ module ALU (
             queue[find_min[0]][`Alu_Lock1_Interval] == `Reg_No_Lock &&
             queue[find_min[0]][`Alu_Lock2_Interval] == `Reg_No_Lock
         ) begin
-            if (queue[find_min[0]][`Alu_Op_Interval] == `NOP) begin
+            if (queue[find_min[0]][`Alu_Op_Interval] == `NOP ) begin
                 cdb_out_valid <= 0;
             end else begin
                 cdb_out_valid <= 1;
@@ -118,6 +118,9 @@ module ALU (
                 `SLL  : cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) <<       (queue[find_min[0]][`Alu_Data2_Low5]);
                 `SRL  : cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) >>       (queue[find_min[0]][`Alu_Data2_Low5]);
                 `SRA  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) >>       (queue[find_min[0]][`Alu_Data2_Low5]);
+                `AUIPC: cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) +        (queue[find_min[0]][`Alu_Data2_Interval]);
+                `JAL  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) + $signed(queue[find_min[0]][`Alu_Data2_Interval]);
+                `JALR : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) + $signed(queue[find_min[0]][`Alu_Data2_Interval]) & 32'hfffffffe;
                 default: ;
             endcase
         end else begin

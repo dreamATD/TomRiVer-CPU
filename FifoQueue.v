@@ -7,6 +7,7 @@ module FifoQueue #(
 ) (
       input clk,
       input rst,
+      input clear,
       input read,
       input write,
       input [DATA_WIDTH-1:0] fifo_in,
@@ -39,27 +40,21 @@ module FifoQueue #(
                     end
                 end
                 2'b11: begin
-                    if (counter == 0)
-                        read_ptr <= read_ptr;
-                    else begin
-                        ram[write_ptr] <= fifo_in;
-                        write_ptr      <= write_ptr + 1;
+                    ram[write_ptr] <= fifo_in;
+                    write_ptr      <= write_ptr + 1;
+                    if (counter) begin
                         read_ptr       <= read_ptr + 1;
-                    end
+                    end else counter <= counter + 1;
                 end
             endcase
         end
     end
     always @ (*) begin
-        if (counter == 0) begin
-            if (write)
-                fifo_out <= fifo_in;
-            else
-                fifo_out <= {DATA_WIDTH{1'b0}};
-        end else
-            fifo_out <= ram[read_ptr];
+        fifo_out <= ram[read_ptr];
     end
-
-    assign fifo_empty = (counter == 0) && (write == 0);
-    assign fifo_full = (counter == ENTRY_NUMBER) && (read == 0);
+    always @ (*) begin
+        if (clear && counter) write_ptr <= read_ptr + 1;
+    end
+    assign fifo_empty = (counter == 0);
+    assign fifo_full = (counter == ENTRY_NUMBER);
 endmodule

@@ -34,10 +34,15 @@ module CDB(
     // with ROB
     output rob_write_alu,
     output [`ROB_Entry_Width-1 : 0] rob_out_entry_alu,
-    output [`Data_Width-1      : 0] rob_out_value_alu
+    output [`Data_Width-1      : 0] rob_out_value_alu,
+    // with PC
+    output [`Reg_Lock_Width-1 : 0] pc_out_index,
+    output [`Data_Width-1     : 0] pc_out_result
 );
     assign alu_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
     assign alu_out_result_alu = alu_in_valid ? alu_in_result : 0;
+    assign pc_out_index = alu_in_valid ? alu_in_index : `Reg_No_Lock;
+    assign pc_out_result = alu_in_valid ? alu_in_result : 0;
     assign rob_write_alu = alu_in_valid;
     assign rob_out_entry_alu = alu_in_index;
     assign rob_out_value_alu = alu_in_result;

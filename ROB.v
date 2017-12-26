@@ -72,8 +72,7 @@ module ROB(
     assign out_lock = write_ptr;
 
     assign read_enable = (
-        counter != 0 && ram[read_ptr][0] ||
-        counter == 0 && write && fifo_in[0]
+        counter != 0 && ram[read_ptr][0]
     ) ? 1 : 0;
 
 
@@ -116,14 +115,16 @@ module ROB(
         end
     end
 
+    wire [`ROB_Bus_Width-1   : 0] read_out;
+    assign read_out = ram[read_ptr];
     always @ (*) begin
-        if (ram[read_ptr][`ROB_Valid_Interval])
-            case (ram[read_ptr][`ROB_Op_Interval])
+        if (read_enable && read_out[`ROB_Valid_Interval])
+            case (read_out[`ROB_Op_Interval])
                 Normal_Op: begin
                     reg_modify <= 1;
                     //mem_modify <= 0;
-                    reg_name   <= ram[read_ptr][`ROB_Reg_Interval];
-                    reg_data   <= ram[read_ptr][`ROB_Value_Interval];
+                    reg_name   <= read_out[`ROB_Reg_Interval];
+                    reg_data   <= read_out[`ROB_Value_Interval];
                     reg_entry  <= read_ptr;
                 end/*
                 Store: begin

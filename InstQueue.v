@@ -31,6 +31,7 @@ module InstQueue(
     input [`Inst_Width-1:0]             cache_inst,
 
     // with Decoder
+    input clear,
     input                           dec_enable,
     output [`Inst_Addr_Width-1:0]   dec_pc,
     output [`Inst_Width-1:0]        dec_inst,
@@ -39,12 +40,13 @@ module InstQueue(
 
     localparam Queue_Entry_Number       = 16;
     localparam Queue_Entry_Width        = 4;
-    
+
     assign dec_pc = pc_in;
 
     FifoQueue #(Queue_Entry_Number, Queue_Entry_Width, `Inst_Width) queue (
         .clk(clk),
         .rst(rst),
+        .clear (clear),
         .read(dec_enable),
         .write(cache_inst_enable),
         .fifo_in(cache_inst),

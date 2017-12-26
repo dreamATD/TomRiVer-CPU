@@ -21,13 +21,24 @@
 
 `include "defines.v"
 module Decoder (
-    // with InstQueue
     input clk,
     input rst,
+    // with InstQueue
+    /*
     input  [`Inst_Width-1:0] inst_in,
     input [`Inst_Addr_Width-1:0] inst_pc,
     input inst_stall,
     output inst_enable,
+    output clear,
+    */
+    // with InstCache
+    input [`Inst_Width-1:0] inst_in,
+    input inst_enable,
+    // with PC
+    input [`Inst_Addr_Width-1:0] inst_pc,
+    output pc_stall,
+    output [`Reg_Lock_Width-1 : 0] pc_lock,
+    output [`Data_Width-1     : 0] pc_offset,
 
     // with ROB, write rd
     input rob_stall,
@@ -78,17 +89,27 @@ module Decoder (
     wire [`Opcode_Width-1  : 0] op;    // opcode
     wire [`Simp_Op_Width-1 : 0] simp_op; // operation defined by myself.
     wire [`Reg_Width-1     : 0] rd, rs1, rs2; // register name
-    wire [`Imm_Width-1     : 0] imm1;
+    wire [`Imm_Width-1     : 0] imm;
+    wire [`Jmm_Width-1     : 0] jmm;
     wire [`Func3_Width-1   : 0] func3;
     wire [`Func7_Width-1   : 0] func7;
 
+    assign pc_stall = (rob_stall || (
+     //       op == `LoadOpcode   ? ld_stall :
+       //     op == `StoreOpcode  ? st_stall :
+                                  alu_stall
+        )
+    );
+
+    // decode
     assign rd = inst_in[`Rd_Interval];
     assign rs1 = inst_in[`Rs1_Interval];
     assign rs2 = (
         op == `Op_Imm ? `Reg_Width'd0 :
                         inst_in[`Rs2_Interval]
     );
-    assign imm1 = inst_in[`Imm_Interval];
+    assign imm = inst_in[`Imm_Interval];
+    assign jmm = inst_in[`Jmm_Interval];
     assign func3 = inst_in[`Func3_Interval];
     assign func7 = inst_in[`Func7_Interval];
     assign op = inst_in[`Opcode_Interval];
@@ -103,10 +124,14 @@ module Decoder (
         (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b001 ? `SLL :
         (op == `Op_Imm || op == `Op_ && func7 == 7'b0000000) && func3 == 3'b101 ? `SRL :
         (op == `Op_Imm || op == `Op_ && func7 == 7'b0100000) && func3 == 3'b101 ? `SRA :
-                                  0
-    );
+        (op == `LUI_                                       )                    ? `LUI :
+        (op == `AUIPC_                                     )                    ? `AUIPC :
+        (op == `JAL_                                       )                    ? `JAL :
+        (op == `JALR_                                      ) && func3 == 3'b000 ? `JALR :
+                                                                                    0
+    ); // wait to be optimized.
 
-
+    // check the reg's lock and whether it has been caculated and recoded in rob.
     assign reg_name1 = rs1;
     assign reg_name2 = rs2;
     assign reg_read1 = 1;
@@ -127,12 +152,9 @@ module Decoder (
     assign lock2 = (reg_lock2 == `Reg_No_Lock || reg_lock2 != `Reg_No_Lock && rob_value_enable2) ? `Reg_No_Lock : reg_lock2;
     assign data2 = (reg_lock2 == `Reg_No_Lock) ? reg_data2 : (reg_lock2 != `Reg_No_Lock && rob_value_enable2) ? rob_value2 : 0;
 
-    assign inst_enable = (!rob_stall && !(
-     //       op == `LoadOpcode   ? ld_stall :
-       //     op == `StoreOpcode  ? st_stall :
-                                  alu_stall
-        )
-    );
+    //jump
+    assign pc_lock   = !inst_enable ? `Reg_No_Lock : simp_op == `JALR ? rob_rd_lock : `Reg_No_Lock;
+    assign pc_offset = simp_op == `JAL  ? {{(`Inst_Addr_Width - `Jmm_Width - 1){jmm[`Jmm_Width-1]}}, jmm[7:0], jmm[8], jmm[18:9], 1'b0} : 4;
 
     always @ (*) begin
         if (rst) begin
@@ -140,7 +162,7 @@ module Decoder (
             rob_write <= 0;
             reg_write <= 0;
         end else begin
-            if (!inst_stall) begin
+            if (inst_enable) begin
                 case (op)
                     `Op_Imm : begin
                         //{alu_enable, ld_enable, st_enable} <= 3'b100;
@@ -150,7 +172,7 @@ module Decoder (
                         alu_bus   <= {
                             simp_op,
                             lock1, data1,
-                            `Reg_No_Lock, {{(`Data_Width-`Imm_Width){imm1[`Imm_Width-1]}},imm1},
+                            `Reg_No_Lock, {{(`Data_Width-`Imm_Width){imm[`Imm_Width-1]}}, imm},
                             rob_rd_lock
                         };
                         rob_bus <= {
@@ -182,6 +204,81 @@ module Decoder (
                             rd, rob_rd_lock
                         };
                     end
+                    `LUI_ : begin
+                        //{alu_enable, ld_enable, st_enable} <= 3'b100;
+                        alu_write <= 0;
+                        reg_write <= 1;
+                        rob_write <= 1;
+                        alu_bus   <= 0;
+                        rob_bus <= {
+                            Normal_Op,
+                            {{(`Addr_Width-`Reg_Width){1'b0}}, rd},
+                            {jmm, {(`Data_Width - `Jmm_Width){1'b0}}}, 1'b1
+                        };
+                        reg_bus <= {
+                            rd, rob_rd_lock
+                        };
+                    end
+                    `AUIPC_ : begin
+                        //{alu_enable, ld_enable, st_enable} <= 3'b100;
+                        alu_write <= 1;
+                        reg_write <= 1;
+                        rob_write <= 1;
+                        alu_bus   <= {
+                            simp_op,
+                            `Reg_No_Lock, inst_pc,
+                            `Reg_No_Lock, {jmm, {(`Data_Width - `Jmm_Width){1'b0}}},
+                            rob_rd_lock
+                        };
+                        rob_bus <= {
+                            Normal_Op,
+                            {{(`Addr_Width-`Reg_Width){1'b0}}, rd},
+                            32'd0, 1'b0
+                        };
+                        reg_bus <= {
+                            rd, rob_rd_lock
+                        };
+                    end
+                    `JAL_ : begin
+                        //{alu_enable, ld_enable, st_enable} <= 3'b100;
+                        alu_write <= 1;
+                        reg_write <= 1;
+                        rob_write <= 1;
+                        alu_bus   <= {
+                            simp_op,
+                            `Reg_No_Lock, inst_pc,
+                            `Reg_No_Lock, 32'd4,
+                            rob_rd_lock
+                        };
+                        rob_bus <= {
+                            Normal_Op,
+                            {{(`Addr_Width-`Reg_Width){1'b0}}, rd},
+                            32'd0, 1'b0
+                        };
+                        reg_bus <= {
+                            rd, rob_rd_lock
+                        };
+                    end
+                    `JALR_ : begin
+                        //{alu_enable, ld_enable, st_enable} <= 3'b100;
+                        alu_write <= 1;
+                        reg_write <= 1;
+                        rob_write <= 1;
+                        alu_bus   <= {
+                            simp_op,
+                            lock1, data1,
+                            `Reg_No_Lock, {{{(`Data_Width-`Imm_Width){imm[`Imm_Width-1]}}, imm} - inst_pc},
+                            rob_rd_lock
+                        };
+                        rob_bus <= {
+                            Normal_Op,
+                            {{(`Addr_Width-`Reg_Width){1'b0}}, rd},
+                            inst_pc + 32'd4, 1'b1
+                        };
+                        reg_bus <= {
+                            rd, rob_rd_lock
+                        };
+                    end
                     default: begin
                         alu_write <= 0;
                         reg_write <= 0;
@@ -191,6 +288,13 @@ module Decoder (
                         reg_bus   <= {`Reg_Bus_Width{1'b0}};
                     end
                 endcase
+            end else begin
+                alu_write <= 0;
+                reg_write <= 0;
+                rob_write <= 0;
+                rob_bus   <= {`ROB_Bus_Width{1'b0}};
+                alu_bus   <= {`Alu_Bus_Width{1'b0}};
+                reg_bus   <= {`Reg_Bus_Width{1'b0}};
             end
         end
     end

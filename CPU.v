@@ -23,21 +23,24 @@
 module CPU (
     input clk,
     input rst,
-    input icache_instq_enable,
-    input [`Inst_Width-1:0] icache_instq_inst,
+    input icache_dec_enable,
+    input [`Inst_Width-1:0] icache_dec_inst,
     output pc_icache_ce,
+    output pc_icache_stall,
     output [`Inst_Addr_Width-1:0] icache_addr
 );
+/*
     // between PC and InstQueue
     wire instq_pc_stall;
     wire [`Inst_Addr_Width-1 : 0] pc_instq_addr;
 
     // between InstQueue and Decoder
+    wire dec_instq_clear;
     wire dec_instq_enable;
     wire [`Inst_Addr_Width-1 : 0] instq_dec_pc;
     wire [`Inst_Width-1 : 0] instq_dec_inst;
     wire instq_dec_stall;
-
+*/
     // between ROB and Decoder
     // with ROB, write rd
     wire rob_dec_stall;
@@ -69,7 +72,8 @@ module CPU (
     // between ALU and Decoder
     wire alu_dec_stall;
     wire dec_alu_write;
-    wire [`Alu_Bus_Width-1 : 0] dec_alu_bus;
+    wire [`Inst_Addr_Width-1 : 0] dec_alu_pc;
+    wire [`Alu_Bus_Width-1   : 0] dec_alu_bus;
 
     // between ALU and CDB
     wire [`Reg_Lock_Width-1 : 0] cdb_alu_index;
@@ -90,13 +94,31 @@ module CPU (
     wire [`Data_Width-1      : 0] rob_reg_data;
     wire [`ROB_Entry_Width-1 : 0] rob_reg_entry;
 
+    // between Decoder and PC
+    wire dec_pc_stall;
+    wire [`Inst_Addr_Width-1 : 0] pc_dec_addr;
+    wire [`Reg_Lock_Width-1  : 0] dec_pc_lock;
+    wire [`Inst_Addr_Width-1 : 0] dec_pc_offset;
+    // between CDB and PC
+    wire [`Reg_Lock_Width-1  : 0] cdb_pc_index;
+    wire [`Inst_Addr_Width-1 : 0] cdb_pc_result;
+
     PC pc0 (
         .clk (clk),
         .rst (rst),
-        .stall (instq_pc_stall),
-        .pc (pc_instq_addr),
-        .ce (pc_icache_ce)
+        .stall (dec_pc_stall),
+        .pc (pc_dec_addr),
+        .ce (pc_icache_ce),
+        .cache_stall (pc_icache_stall),
+        // with Decoder
+        .dec_lock (dec_pc_lock),
+        .dec_offset (dec_pc_offset),
+        // with CDB
+        .cdb_index (cdb_pc_index),
+        .cdb_result (cdb_pc_result)
     );
+    assign icache_addr = pc_dec_addr;
+    /*
     InstQueue instQueue0 (
         .clk (clk),
         .rst (rst),
@@ -107,20 +129,24 @@ module CPU (
         .cache_inst_enable (icache_instq_enable),
         .cache_inst (icache_instq_inst),
         // with Decoder
+        .clear (dec_instq_clear),
         .dec_enable (dec_instq_enable),
         .dec_pc (instq_dec_pc),
         .dec_inst (instq_dec_inst),
         .dec_stall (instq_dec_stall)
     );
-    assign icache_addr = pc_instq_addr;
+    */
     Decoder decoder0 (
         .clk (clk),
         .rst (rst),
-        // with InstQueue
-        .inst_in (instq_dec_inst),
-        .inst_pc (instq_dec_pc),
-        .inst_stall (instq_dec_stall),
-        .inst_enable (dec_instq_enable),
+        // with InstCache
+        .inst_in (icache_dec_inst),
+        .inst_enable (icache_dec_enable),
+        // with PC
+        .inst_pc (pc_dec_addr),
+        .pc_stall (dec_pc_stall),
+        .pc_lock (dec_pc_lock),
+        .pc_offset (dec_pc_offset),
         // with ROB, write rd
         .rob_stall (rob_dec_stall),
         .rob_rd_lock (rob_dec_rd_lock),
@@ -192,7 +218,10 @@ module CPU (
         // with ROB
         .rob_write_alu (cdb_rob_write),
         .rob_out_entry_alu (cdb_rob_out_entry),
-        .rob_out_value_alu (cdb_rob_out_value)
+        .rob_out_value_alu (cdb_rob_out_value),
+        // with PC
+        .pc_out_index (cdb_pc_index),
+        .pc_out_result (cdb_pc_result)
     );
 
     ROB rob0 (

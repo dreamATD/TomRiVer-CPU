@@ -20,16 +20,45 @@
 //////////////////////////////////////////////////////////////////////////////////
 `include "defines.v"
 
-module PC(
+module PC (
     input clk,
     input rst,
     input stall,
     output reg [`Inst_Addr_Width-1 : 0] pc,
-    output reg ce
+    output reg ce,
+    output reg cache_stall,
+    // with Decoder
+    input [`Reg_Lock_Width-1  : 0] dec_lock,
+    input [`Inst_Addr_Width-1 : 0] dec_offset,
+    // with CDB
+    input [`Reg_Lock_Width-1  : 0] cdb_index,
+    input [`Inst_Addr_Width-1 : 0] cdb_result
 );
+
+    reg [`Reg_Lock_Width-1  : 0] lock;
+    reg [`Inst_Addr_Width-1 : 0] offset;
+
+    always @ (dec_lock, cdb_index, cdb_result, dec_offset) begin
+        if (!rst && lock == `Reg_No_Lock && dec_lock == `Reg_No_Lock) begin
+            lock <= `Reg_No_Lock;
+            offset <= dec_offset;
+        end
+        if (!rst && lock == `Reg_No_Lock && dec_lock != `Reg_No_Lock) begin
+            lock <= dec_lock;
+            $display("##");
+        end
+        if (!rst && lock != `Reg_No_Lock && cdb_index == lock) begin
+            lock <= `Reg_No_Lock;
+            $display("@@");
+            offset <= cdb_result;
+        end
+    end
+
     always @ (posedge clk) begin
-        if (rst || stall) begin
+        if (rst) begin
             ce <= 1'b0;
+            lock <= `Reg_No_Lock;
+            offset <= 4;
         end else begin
             ce <= 1'b1;
         end
@@ -38,8 +67,20 @@ module PC(
     always @ (posedge clk) begin
         if (ce == 1'b0) begin
             pc <= 32'h000000;
+        end else if (!stall) begin
+            case (lock)
+                `Reg_No_Lock : begin
+                    pc <= pc + offset;
+                    cache_stall <= 0;
+                end
+                default : begin
+                    pc <= pc;
+                    cache_stall <= 1;
+                end
+            endcase
         end else begin
-            pc <= pc + 4'h4;
+            pc <= pc;
+            cache_stall <= 0;
         end
     end
 endmodule

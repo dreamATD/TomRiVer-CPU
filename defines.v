@@ -2,7 +2,7 @@
 `define __DEFINES__
 `define Addr_Width          32
 `define Inst_Width          32
-`define Inst_Addr_Width     17
+`define Inst_Addr_Width     32
 
 `define Opcode_Interval     6:0
 `define Opcode_Width        7
@@ -17,6 +17,8 @@
 `define Func7_Width         7
 `define Imm_Interval        31:20
 `define Imm_Width           12
+`define Jmm_Interval        31:12
+`define Jmm_Width           20
 `define Data_Width          32
 
 `define ROB_Entry           8
@@ -48,6 +50,12 @@
 `define Class_Opcode_NOP    7'b0000000
 `define Op_Imm              7'b0010011
 `define Op_                 7'b0110011
+`define LUI_                7'b0110111
+`define AUIPC_              7'b0010111
+`define JAL_                7'b1101111
+`define JALR_               7'b1100111
+
+`define NOP_Inst            32'b00000000000000000000000000110011
 
 `define NOP                 6'b000000
 `define ADD                 6'b000001
@@ -60,4 +68,8 @@
 `define SLL                 6'b001000
 `define SRL                 6'b001001
 `define SRA                 6'b001010
+`define LUI                 6'b001011
+`define AUIPC               6'b001100
+`define JAL                 6'b001101
+`define JALR                6'b001110
 `endif
