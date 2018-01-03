@@ -72,16 +72,33 @@ module CPU (
     // between ALU and Decoder
     wire alu_dec_stall;
     wire dec_alu_write;
-    wire [`Inst_Addr_Width-1 : 0] dec_alu_pc;
     wire [`Alu_Bus_Width-1   : 0] dec_alu_bus;
+
+    // between Branch_ALU and Decoder
+    wire bra_dec_stall;
+    wire dec_bra_write;
+    wire [`Bra_Bus_Width-1 : 0] dec_bra_bus;
+
+    // between Branch_Predictor and Decoder
+    wire [`Bra_History_Width-1 : 0] dec_brp_pattern;
+    wire [`Bra_Addr_Width-1    : 0] dec_brp_addr;
+    wire brp_dec_branch_prediction;
 
     // between ALU and CDB
     wire [`Reg_Lock_Width-1 : 0] cdb_alu_index;
     wire [`Data_Width-1     : 0] cdb_alu_result;
-    wire cdb_alu_done;
     wire alu_cdb_valid;
     wire [`Reg_Lock_Width-1 : 0] alu_cdb_index;
     wire [`Data_Width-1     : 0] alu_cdb_result;
+
+    // between Branch_ALU and CDB
+    wire [`Reg_Lock_Width-1 : 0] cdb_bra_index;
+    wire [`Data_Width-1     : 0] cdb_bra_result;
+
+    // between Branch_ALU and ROB
+    wire bra_rob_write;
+    wire [`ROB_Entry_Width-1 : 0] bra_rob_entry;
+    wire [1                  : 0] bra_rob_value;
 
     // between CDB and ROB
     wire cdb_rob_write;
@@ -94,11 +111,22 @@ module CPU (
     wire [`Data_Width-1      : 0] rob_reg_data;
     wire [`ROB_Entry_Width-1 : 0] rob_reg_entry;
 
+    // between ROB and PC
+    wire rob_pc_modify;
+    wire [`Inst_Addr_Width-1 : 0] rob_pc_npc;
+
+    // between Branch_Predictor and ROB
+    wire rob_brp_update;
+    wire [`Bra_History_Width-1 : 0] rob_brp_pattern;
+    wire [`Bra_Addr_Width-1    : 0] rob_brp_addr;
+    wire rob_brp_result;
+
     // between Decoder and PC
     wire dec_pc_stall;
     wire [`Inst_Addr_Width-1 : 0] pc_dec_addr;
     wire [`Reg_Lock_Width-1  : 0] dec_pc_lock;
     wire [`Inst_Addr_Width-1 : 0] dec_pc_offset;
+
     // between CDB and PC
     wire [`Reg_Lock_Width-1  : 0] cdb_pc_index;
     wire [`Inst_Addr_Width-1 : 0] cdb_pc_result;
@@ -115,7 +143,10 @@ module CPU (
         .dec_offset (dec_pc_offset),
         // with CDB
         .cdb_index (cdb_pc_index),
-        .cdb_result (cdb_pc_result)
+        .cdb_result (cdb_pc_result),
+        // with ROB
+        .rob_modify (rob_pc_modify),
+        .rob_npc (rob_pc_npc)
     );
     assign icache_addr = pc_dec_addr;
     /*
@@ -185,7 +216,33 @@ module CPU (
         // with ALU
         .alu_stall (alu_dec_stall),
         .alu_write (dec_alu_write),
-        .alu_bus (dec_alu_bus)
+        .alu_bus (dec_alu_bus),
+        // with Bra_ALU
+        .bra_stall (bra_dec_stall),
+        .bra_write (dec_bra_write),
+        .bra_bus (dec_bra_bus),
+        // with Branch_Predictor
+        .brp_pattern (dec_brp_pattern),
+        .brp_addr (dec_brp_addr),
+        .branch_prediction (brp_dec_branch_prediction)
+    );
+
+    Branch_ALU branch_alu0 (
+        .clk (clk),
+        .rst (rst),
+        // with Decoder
+        .bra_stall (bra_dec_stall),
+        .bra_enable (dec_bra_write),
+        .bra_bus (dec_bra_bus),
+
+        // with CDB
+        .cdb_in_index (cdb_bra_index),
+        .cdb_in_result (cdb_bra_result),
+
+        // with ROB
+        .rob_out_valid (bra_rob_write),
+        .rob_out_index (bra_rob_entry),
+        .rob_out_result (bra_rob_value)
     );
 
     ALU alu0 (
@@ -213,6 +270,9 @@ module CPU (
         .alu_in_valid (alu_cdb_valid),
         .alu_in_index (alu_cdb_index),
         .alu_in_result (alu_cdb_result),
+        // with Branch_ALU
+        .bra_out_index_alu (cdb_bra_index),
+        .bra_out_result_alu (cdb_bra_result),
         // with Load
         // with Store
         // with ROB
@@ -257,7 +317,33 @@ module CPU (
         // with CDB
         .cdb_write (cdb_rob_write),
         .cdb_in_entry (cdb_rob_out_entry),
-        .cdb_in_value (cdb_rob_out_value)
+        .cdb_in_value (cdb_rob_out_value),
+        // with Branch_ALU
+        .bra_write (bra_rob_write),
+        .bra_in_entry (bra_rob_entry),
+        .bra_in_value (bra_rob_value),
+        // with PC
+        .pc_modify (rob_pc_modify),
+        .npc (rob_pc_npc),
+        // with Branch_Predictor
+        .brp_update (rob_brp_update),
+        .brp_pattern (rob_brp_pattern),
+        .brp_addr (rob_brp_addr),
+        .brp_result (rob_brp_result)
+    );
+
+    Branch_Predictor branch_predictor0(
+        .clk (clk),
+        .rst (rst),
+        // with Decoder
+        .dec_pattern (dec_brp_pattern),
+        .dec_addr (dec_brp_addr),
+        .dec_prediction (brp_dec_branch_prediction),
+        // with ROB
+        .brp_update (rob_brp_update),
+        .rob_pattern (rob_brp_pattern),
+        .rob_addr (rob_brp_addr),
+        .rob_prediction (rob_brp_result)
     );
 
     RegFile regfile0 (

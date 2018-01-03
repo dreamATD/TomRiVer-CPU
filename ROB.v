@@ -52,8 +52,20 @@ module ROB(
     */
     // with CDB
     input cdb_write,
-    input [`ROB_Entry_Width-1 : 0] cdb_in_entry,
-    input [`Data_Width-1      : 0] cdb_in_value
+    input [`ROB_Entry_Width-1    : 0] cdb_in_entry,
+    input [`Data_Width-1         : 0] cdb_in_value,
+    // with Branch_ALU
+    input bra_write,
+    input [`ROB_Entry_Width-1    : 0] bra_in_entry,
+    input [1                     : 0] bra_in_value,
+    // with PC
+    output reg pc_modify,
+    output reg [`Inst_Addr_Width-1   : 0] npc,
+    // with Branch_Predictor
+    output reg brp_update,
+    output reg [`Bra_History_Width-1 : 0] brp_pattern,
+    output reg [`Bra_Addr_Width-1    : 0] brp_addr,
+    output reg [1:0] brp_result
 );
     localparam  DATA_WIDTH = `ROB_Bus_Width;
     localparam  ENTRY_NUMBER = 8;
@@ -67,6 +79,9 @@ module ROB(
     reg [DATA_WIDTH-1  : 0] ram [ENTRY_NUMBER-1:0];
     reg [ENTRY_WIDTH-1 : 0] read_ptr, write_ptr, counter;
     wire read_enable;
+    reg write_enable;
+
+    reg [`Bra_History_Width-1:0] pattern;
 
     assign fifo_full = (counter == ENTRY_NUMBER);
     assign out_lock = write_ptr;
@@ -83,13 +98,14 @@ module ROB(
 
     always @ (posedge clk) begin
         if(rst) begin
+            pattern    <= 2'b00;
             read_ptr   <= 0;
             write_ptr  <= 0;
             counter    <= 0;
             reg_modify <= 0;
         end
         else begin
-            case ({read_enable, write})
+            case ({read_enable, write_enable})
                 2'b00: counter <= counter;
                 2'b01: begin
                     ram[write_ptr] <= fifo_in;
@@ -117,12 +133,17 @@ module ROB(
 
     wire [`ROB_Bus_Width-1   : 0] read_out;
     assign read_out = ram[read_ptr];
-    always @ (*) begin
+    always @ (read_out, read_ptr, read_enable, write) begin
+        reg_modify   <= 0;
+        pc_modify    <= 0;
+        brp_update   <= 0;
+        pattern      <= pattern;
+        write_enable <= write;
+        //mem_modify <= 0;
         if (read_enable && read_out[`ROB_Valid_Interval])
             case (read_out[`ROB_Op_Interval])
                 Normal_Op: begin
                     reg_modify <= 1;
-                    //mem_modify <= 0;
                     reg_name   <= read_out[`ROB_Reg_Interval];
                     reg_data   <= read_out[`ROB_Value_Interval];
                     reg_entry  <= read_ptr;
@@ -133,19 +154,32 @@ module ROB(
                     mem_addr   <= fifo_out[1+`Data_Width+`Addr_Width-1:1+`Data_Width];
                     mem_data   <= fifo_out[1+`Data_Width-1:1];
                 end*/
-                default: begin
-                    reg_modify <= 0;
-                    //mem_modify <= 0;
+                Branch: begin
+                    if (read_out[`ROB_Branch_Interval] == 2'b10 || read_out[`ROB_Branch_Interval] == 2'b01) begin
+                        write_enable <= 0;
+                        write_ptr    <= read_ptr;
+                        counter      <= 0;
+                        pc_modify    <= 1;
+                        npc          <= read_out[`ROB_Ins_Interval];
+                    end
+                    brp_update <= 1;
+                    brp_addr <= read_out[`ROB_Baddr_Interval];
+                    brp_result <= read_out[1];
+                    brp_pattern <= pattern;
+                    pattern <= pattern << 1 | read_out[1];
                 end
+                default: ;
             endcase
-        else reg_modify <= 0;
     end
 
-    integer i;
     always @ (*) begin
         if (cdb_write && !ram[cdb_in_entry][`ROB_Valid_Interval]) begin
             ram[cdb_in_entry][`ROB_Valid_Interval] <= 1;
             ram[cdb_in_entry][`ROB_Value_Interval] <= cdb_in_value;
+        end
+        if (bra_write && !ram[bra_in_entry][`ROB_Valid_Interval]) begin
+            ram[bra_in_entry][`ROB_Valid_Interval]  <= 1;
+            ram[bra_in_entry][`ROB_Branch_Interval] <= bra_in_value;
         end
     end
 endmodule

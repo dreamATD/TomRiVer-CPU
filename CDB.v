@@ -29,6 +29,9 @@ module CDB(
     input alu_in_valid,
     input [`Reg_Lock_Width-1 : 0] alu_in_index,
     input [`Data_Width-1     : 0] alu_in_result,
+    // with Branch_ALU
+    output [`Reg_Lock_Width-1 : 0] bra_out_index_alu,
+    output [`Data_Width-1     : 0] bra_out_result_alu,
     // with Load
     // with Store
     // with ROB
@@ -41,6 +44,8 @@ module CDB(
 );
     assign alu_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
     assign alu_out_result_alu = alu_in_valid ? alu_in_result : 0;
+    assign bra_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
+    assign bra_out_result_alu = alu_in_valid ? alu_in_result : 0;
     assign pc_out_index = alu_in_valid ? alu_in_index : `Reg_No_Lock;
     assign pc_out_result = alu_in_valid ? alu_in_result : 0;
     assign rob_write_alu = alu_in_valid;

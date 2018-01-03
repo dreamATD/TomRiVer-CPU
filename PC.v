@@ -28,11 +28,14 @@ module PC (
     output reg ce,
     output reg cache_stall,
     // with Decoder
-    input [`Reg_Lock_Width-1  : 0] dec_lock,
-    input [`Inst_Addr_Width-1 : 0] dec_offset,
+    input [`Reg_Lock_Width-1    : 0] dec_lock,
+    input [`Inst_Addr_Width-1   : 0] dec_offset,
     // with CDB
-    input [`Reg_Lock_Width-1  : 0] cdb_index,
-    input [`Inst_Addr_Width-1 : 0] cdb_result
+    input [`Reg_Lock_Width-1    : 0] cdb_index,
+    input [`Inst_Addr_Width-1   : 0] cdb_result,
+    // with ROB
+    input rob_modify,
+    input [`Inst_Addr_Width - 1 : 0] rob_npc
 );
 
     reg [`Reg_Lock_Width-1  : 0] lock;
@@ -68,16 +71,16 @@ module PC (
         if (ce == 1'b0) begin
             pc <= 32'h000000;
         end else if (!stall) begin
-            case (lock)
-                `Reg_No_Lock : begin
-                    pc <= pc + offset;
-                    cache_stall <= 0;
-                end
-                default : begin
-                    pc <= pc;
-                    cache_stall <= 1;
-                end
-            endcase
+            pc <= pc;
+            cache_stall <= 1;
+            if (rob_modify) begin
+                pc <= rob_npc;
+                cache_stall <= 0;
+            end
+            if (lock == `Reg_No_Lock && !rob_modify)  begin
+                pc <= pc + offset;
+                cache_stall <= 0;
+            end
         end else begin
             pc <= pc;
             cache_stall <= 0;

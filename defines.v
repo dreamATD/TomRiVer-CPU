@@ -39,9 +39,26 @@
 `define ROB_Bus_Width       (2 + `Addr_Width + `Data_Width + 1)
 `define ROB_Valid_Interval  0
 `define ROB_Value_Interval  `Data_Width:1
+`define ROB_Branch_Interval 2:1
+`define ROB_Baddr_Interval  (`Bra_Addr_Width + 2):3
 `define ROB_Reg_Interval    (`Reg_Width + `Data_Width):(`Data_Width + 1)
 `define ROB_Mem_Interval    (`Addr_Width + `Data_Width):(`Data_Width + 1)
+`define ROB_Ins_Interval    (`Inst_Addr_Width + `Data_Width):(`Data_Width + 1)
 `define ROB_Op_Interval     (2 +`Addr_Width+`Data_Width):(`Addr_Width+`Data_Width + 1)
+`define Bra_Bus_Width       `Alu_Bus_Width + 1
+`define Bra_Pre_Interval    0
+`define Bra_Rdlock_Interval `ROB_Entry_Width:1
+`define Bra_Data2_Interval  (`Data_Width+`ROB_Entry_Width):(`ROB_Entry_Width + 1)
+`define Bra_Lock2_Interval  (`Reg_Lock_Width+`ROB_Entry_Width+`Data_Width):(`Data_Width+`ROB_Entry_Width + 1)
+`define Bra_Data1_Interval  (`Data_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width):(`Reg_Lock_Width+`ROB_Entry_Width+`Data_Width + 1)
+`define Bra_Lock1_Interval  (`Reg_Lock_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width+`Data_Width):(`Data_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width + 1)
+`define Bra_Op_Interval     (`Reg_Lock_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width+`Data_Width+`Simp_Op_Width):(`Reg_Lock_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width+`Data_Width + 1)
+
+`define Bra_Addr_Width      4
+`define Bra_History_Width   2
+`define Bra_Entry_Cnt       (1 << `Bra_Addr_Width + `Bra_History_Width)
+`define Bra_Entry_Width     (`Bra_Addr_Width + `Bra_History_Width)
+
 
 `define StoreOpcode         7'b0100011
 `define LoadOpcode          7'b0000011
@@ -54,6 +71,7 @@
 `define AUIPC_              7'b0010111
 `define JAL_                7'b1101111
 `define JALR_               7'b1100111
+`define BRANCH_             7'b1100011
 
 `define NOP_Inst            32'b00000000000000000000000000110011
 
@@ -72,4 +90,10 @@
 `define AUIPC               6'b001100
 `define JAL                 6'b001101
 `define JALR                6'b001110
+`define BEQ                 6'b001111
+`define BNE                 6'b010000
+`define BLT                 6'b010001
+`define BLTU                6'b010010
+`define BGE                 6'b010011
+`define BGEU                6'b010100
 `endif
