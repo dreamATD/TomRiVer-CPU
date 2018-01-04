@@ -63,9 +63,9 @@ module ROB(
     output reg [`Inst_Addr_Width-1   : 0] npc,
     // with Branch_Predictor
     output reg brp_update,
-    output reg [`Bra_History_Width-1 : 0] brp_pattern,
+/*    output reg [`Bra_History_Width-1 : 0] brp_pattern, */
     output reg [`Bra_Addr_Width-1    : 0] brp_addr,
-    output reg [1:0] brp_result
+    output reg brp_result
 );
     localparam  DATA_WIDTH = `ROB_Bus_Width;
     localparam  ENTRY_NUMBER = 8;
@@ -165,7 +165,7 @@ module ROB(
                     brp_update <= 1;
                     brp_addr <= read_out[`ROB_Baddr_Interval];
                     brp_result <= read_out[1];
-                    brp_pattern <= pattern;
+                    /*brp_pattern <= pattern; */
                     pattern <= pattern << 1 | read_out[1];
                 end
                 default: ;

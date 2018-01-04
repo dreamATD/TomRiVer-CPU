@@ -85,7 +85,7 @@ module Decoder (
     output reg bra_write,
     output reg [`Bra_Bus_Width-1 : 0] bra_bus,
     // with Branch_Predictor
-    output [`Bra_History_Width-1 : 0] brp_pattern,
+/*    output [`Bra_History_Width-1 : 0] brp_pattern, */
     output [`Bra_Addr_Width-1    : 0] brp_addr,
     input branch_prediction
 );
@@ -172,11 +172,10 @@ module Decoder (
 
     wire [`Inst_Addr_Width-1  : 0] branch_offset, branch_wrong;
     wire branch_taken;
-    reg [`Bra_History_Width-1 : 0] bra_history;
 
-    assign brp_pattern = bra_history;
+/*    assign brp_pattern = bra_history; */
     assign brp_addr = inst_pc[`Bra_Addr_Width-1 : 0];
-
+/*
     always @ (posedge clk) begin
         if (rst) bra_history = 0;
         else if (op == `BRANCH_)
@@ -184,7 +183,7 @@ module Decoder (
         else
             bra_history <= bra_history;
     end
-
+*/
     //jump
     assign branch_taken = (
         simp_op == `BEQ ? (

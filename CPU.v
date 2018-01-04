@@ -80,7 +80,7 @@ module CPU (
     wire [`Bra_Bus_Width-1 : 0] dec_bra_bus;
 
     // between Branch_Predictor and Decoder
-    wire [`Bra_History_Width-1 : 0] dec_brp_pattern;
+/*    wire [`Bra_History_Width-1 : 0] dec_brp_pattern; */
     wire [`Bra_Addr_Width-1    : 0] dec_brp_addr;
     wire brp_dec_branch_prediction;
 
@@ -117,7 +117,7 @@ module CPU (
 
     // between Branch_Predictor and ROB
     wire rob_brp_update;
-    wire [`Bra_History_Width-1 : 0] rob_brp_pattern;
+/*    wire [`Bra_History_Width-1 : 0] rob_brp_pattern; */
     wire [`Bra_Addr_Width-1    : 0] rob_brp_addr;
     wire rob_brp_result;
 
@@ -222,7 +222,7 @@ module CPU (
         .bra_write (dec_bra_write),
         .bra_bus (dec_bra_bus),
         // with Branch_Predictor
-        .brp_pattern (dec_brp_pattern),
+/*        .brp_pattern (dec_brp_pattern), */
         .brp_addr (dec_brp_addr),
         .branch_prediction (brp_dec_branch_prediction)
     );
@@ -327,7 +327,7 @@ module CPU (
         .npc (rob_pc_npc),
         // with Branch_Predictor
         .brp_update (rob_brp_update),
-        .brp_pattern (rob_brp_pattern),
+/*        .brp_pattern (rob_brp_pattern), */
         .brp_addr (rob_brp_addr),
         .brp_result (rob_brp_result)
     );
@@ -336,12 +336,12 @@ module CPU (
         .clk (clk),
         .rst (rst),
         // with Decoder
-        .dec_pattern (dec_brp_pattern),
+/*        .dec_pattern (dec_brp_pattern), */
         .dec_addr (dec_brp_addr),
         .dec_prediction (brp_dec_branch_prediction),
         // with ROB
         .brp_update (rob_brp_update),
-        .rob_pattern (rob_brp_pattern),
+/*        .rob_pattern (rob_brp_pattern), */
         .rob_addr (rob_brp_addr),
         .rob_prediction (rob_brp_result)
     );
