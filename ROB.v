@@ -23,9 +23,10 @@
 module ROB(
     input clk,
     input rst,
+    // with Staller
+    output fifo_full,
 
     // with Decoder
-    output fifo_full,
     output [`ROB_Entry_Width-1 : 0] out_lock,
     input write,
     input [`ROB_Bus_Width-1   : 0] fifo_in,

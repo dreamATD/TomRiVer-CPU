@@ -22,8 +22,9 @@
 module ALU (
     input clk,
     input rst,
-    // with Decoder
+    // with Staller
     output alu_stall,
+    // with Decoder
     input alu_enable,
     input [`Alu_Bus_Width-1   : 0] alu_bus,
 

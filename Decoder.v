@@ -23,25 +23,17 @@
 module Decoder (
     input clk,
     input rst,
-    // with InstQueue
-    /*
-    input  [`Inst_Width-1:0] inst_in,
-    input [`Inst_Addr_Width-1:0] inst_pc,
-    input inst_stall,
-    output inst_enable,
-    output clear,
-    */
     // with InstCache
     input [`Inst_Width-1:0] inst_in,
     input inst_enable,
     // with PC
     input [`Inst_Addr_Width-1:0] inst_pc,
-    output pc_stall,
+/*    output pc_stall, */
     output [`Reg_Lock_Width-1 : 0] pc_lock,
     output [`Data_Width-1     : 0] pc_offset,
 
     // with ROB, write rd
-    input rob_stall,
+/*    input rob_stall, */
     input [`ROB_Entry_Width-1 : 0] rob_rd_lock,
     output reg rob_write,
     output reg [`ROB_Bus_Width-1 : 0] rob_bus,
@@ -66,35 +58,29 @@ module Decoder (
     input [`Data_Width-1     : 0] reg_data2,
     output reg reg_write,
     output reg [`Reg_Bus_Width-1 : 0] reg_bus,
-    // with Load
-    /*
-    input ld_stall,
-    output reg ld_write,
-    output reg [`Load_Bus_Width-1:0] ld_bus,
-    //with Store
-    input st_stall,
-    output reg st_write,
-    output reg [`Store_Bus_Width-1:0] st_bus,
-    */
     // with ALU
-    input alu_stall,
+/*    input alu_stall, */
     output reg alu_write,
     output reg [`Alu_Bus_Width-1 : 0] alu_bus,
+
     // with Branch_ALU
-    input bra_stall,
+/*    input bra_stall, */
     output reg bra_write,
     output reg [`Bra_Bus_Width-1 : 0] bra_bus,
+
     // with Branch_Predictor
 /*    output [`Bra_History_Width-1 : 0] brp_pattern, */
     output [`Bra_Addr_Width-1    : 0] brp_addr,
-    input branch_prediction
+    input branch_prediction,
+
+    // with Staller
+    output [`Opcode_Width-1 : 0] op
 );
 
     localparam  Branch      = 2'd1;
     localparam  Store       = 2'd2;
     localparam  Normal_Op   = 2'd3;
 
-    wire [`Opcode_Width-1    : 0] op;    // opcode
     wire [`Simp_Op_Width-1   : 0] simp_op; // operation defined by myself.
     wire [`Reg_Width-1       : 0] rd, rs1, rs2; // register name
     wire [`Imm_Width-1       : 0] imm;
@@ -102,7 +88,7 @@ module Decoder (
     wire [`Inst_Addr_Width-1 : 0] bmm;
     wire [`Func3_Width-1     : 0] func3;
     wire [`Func7_Width-1     : 0] func7;
-
+/*
     assign pc_stall = (rob_stall || (
      //       op == `LoadOpcode   ? ld_stall :
        //     op == `StoreOpcode  ? st_stall :
@@ -110,7 +96,7 @@ module Decoder (
                                   alu_stall
         )
     );
-
+*/
     // decode
     assign rd = inst_in[`Rd_Interval];
     assign rs1 = inst_in[`Rs1_Interval];

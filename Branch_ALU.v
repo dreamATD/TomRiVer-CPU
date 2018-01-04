@@ -22,8 +22,9 @@
 module Branch_ALU (
     input clk,
     input rst,
-    // with Decoder
+    // with Staller
     output bra_stall,
+    // with Decoder
     input bra_enable,
     input [`Bra_Bus_Width-1    : 0] bra_bus,
 

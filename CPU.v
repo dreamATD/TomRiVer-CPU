@@ -26,24 +26,20 @@ module CPU (
     input icache_dec_enable,
     input [`Inst_Width-1:0] icache_dec_inst,
     output pc_icache_ce,
-    output pc_icache_stall,
+    output sta_icache_stall,
     output [`Inst_Addr_Width-1:0] icache_addr
 );
-/*
-    // between PC and InstQueue
-    wire instq_pc_stall;
-    wire [`Inst_Addr_Width-1 : 0] pc_instq_addr;
+    wire alu_sta_full;
+    wire bra_sta_full;
+/*    wire lsm_sta_full; */
+    wire rob_sta_full;
+    wire [`Opcode_Width-1 : 0] dec_sta_op;
+    wire pc_sta_locked;
 
-    // between InstQueue and Decoder
-    wire dec_instq_clear;
-    wire dec_instq_enable;
-    wire [`Inst_Addr_Width-1 : 0] instq_dec_pc;
-    wire [`Inst_Width-1 : 0] instq_dec_inst;
-    wire instq_dec_stall;
-*/
+    wire sta_pc_stall;
     // between ROB and Decoder
     // with ROB, write rd
-    wire rob_dec_stall;
+/*    wire rob_dec_stall; */
     wire [`ROB_Entry_Width-1    : 0] rob_dec_rd_lock;
     wire dec_rob_write;
     wire [`ROB_Bus_Width-1 : 0] dec_rob_bus;
@@ -70,12 +66,12 @@ module CPU (
     wire [`Reg_Bus_Width-1 : 0] dec_reg_bus;
 
     // between ALU and Decoder
-    wire alu_dec_stall;
+/*    wire alu_dec_stall; */
     wire dec_alu_write;
     wire [`Alu_Bus_Width-1   : 0] dec_alu_bus;
 
     // between Branch_ALU and Decoder
-    wire bra_dec_stall;
+/*    wire bra_dec_stall; */
     wire dec_bra_write;
     wire [`Bra_Bus_Width-1 : 0] dec_bra_bus;
 
@@ -122,7 +118,7 @@ module CPU (
     wire rob_brp_result;
 
     // between Decoder and PC
-    wire dec_pc_stall;
+/*    wire dec_pc_stall; */
     wire [`Inst_Addr_Width-1 : 0] pc_dec_addr;
     wire [`Reg_Lock_Width-1  : 0] dec_pc_lock;
     wire [`Inst_Addr_Width-1 : 0] dec_pc_offset;
@@ -131,14 +127,27 @@ module CPU (
     wire [`Reg_Lock_Width-1  : 0] cdb_pc_index;
     wire [`Inst_Addr_Width-1 : 0] cdb_pc_result;
 
+    Staller staller0 (
+        .rst (rst),
+
+        .alu_full (alu_sta_full),
+        .bra_full (bra_sta_full),
+/*        .lsm_full (lsm_sta_full), */
+        .rob_full (rob_sta_full),
+        .op (dec_sta_op),
+        .pc_locked (pc_sta_locked),
+
+        .pc_stall (sta_pc_stall),
+        .icache_stall (sta_icache_stall)
+    );
+
     PC pc0 (
         .clk (clk),
         .rst (rst),
-        .stall (dec_pc_stall),
-        .pc (pc_dec_addr),
+
         .ce (pc_icache_ce),
-        .cache_stall (pc_icache_stall),
         // with Decoder
+        .pc (pc_dec_addr),
         .dec_lock (dec_pc_lock),
         .dec_offset (dec_pc_offset),
         // with CDB
@@ -146,27 +155,12 @@ module CPU (
         .cdb_result (cdb_pc_result),
         // with ROB
         .rob_modify (rob_pc_modify),
-        .rob_npc (rob_pc_npc)
+        .rob_npc (rob_pc_npc),
+        // with Staller
+        .pc_locked (pc_sta_locked),
+        .stall (sta_pc_stall)
     );
     assign icache_addr = pc_dec_addr;
-    /*
-    InstQueue instQueue0 (
-        .clk (clk),
-        .rst (rst),
-        // with pc
-        .pc_in (pc_instq_addr),
-        .pc_stall (instq_pc_stall),
-        // with InstCache
-        .cache_inst_enable (icache_instq_enable),
-        .cache_inst (icache_instq_inst),
-        // with Decoder
-        .clear (dec_instq_clear),
-        .dec_enable (dec_instq_enable),
-        .dec_pc (instq_dec_pc),
-        .dec_inst (instq_dec_inst),
-        .dec_stall (instq_dec_stall)
-    );
-    */
     Decoder decoder0 (
         .clk (clk),
         .rst (rst),
@@ -175,11 +169,11 @@ module CPU (
         .inst_enable (icache_dec_enable),
         // with PC
         .inst_pc (pc_dec_addr),
-        .pc_stall (dec_pc_stall),
+/*        .pc_stall (dec_pc_stall), */
         .pc_lock (dec_pc_lock),
         .pc_offset (dec_pc_offset),
         // with ROB, write rd
-        .rob_stall (rob_dec_stall),
+/*        .rob_stall (rob_dec_stall), */
         .rob_rd_lock (rob_dec_rd_lock),
         .rob_write (dec_rob_write),
         .rob_bus (dec_rob_bus),
@@ -203,35 +197,28 @@ module CPU (
         .reg_data2 (reg_dec_data2),
         .reg_write (dec_reg_write),
         .reg_bus (dec_reg_bus),
-        // with Load
-        /*
-        input ld_stall,
-        output reg ld_write,
-        output reg [`Load_Bus_Width-1:0] ld_bus,
-        //with Store
-        input st_stall,
-        output reg st_write,
-        output reg [`Store_Bus_Width-1:0] st_bus,
-        */
         // with ALU
-        .alu_stall (alu_dec_stall),
+/*        .alu_stall (alu_dec_stall), */
         .alu_write (dec_alu_write),
         .alu_bus (dec_alu_bus),
         // with Bra_ALU
-        .bra_stall (bra_dec_stall),
+/*        .bra_stall (bra_dec_stall), */
         .bra_write (dec_bra_write),
         .bra_bus (dec_bra_bus),
         // with Branch_Predictor
 /*        .brp_pattern (dec_brp_pattern), */
         .brp_addr (dec_brp_addr),
-        .branch_prediction (brp_dec_branch_prediction)
+        .branch_prediction (brp_dec_branch_prediction),
+        // with Staller
+        .op (dec_sta_op)
     );
 
     Branch_ALU branch_alu0 (
         .clk (clk),
         .rst (rst),
+        // with Staller
+        .bra_stall (bra_sta_full),
         // with Decoder
-        .bra_stall (bra_dec_stall),
         .bra_enable (dec_bra_write),
         .bra_bus (dec_bra_bus),
 
@@ -248,11 +235,11 @@ module CPU (
     ALU alu0 (
         .clk (clk),
         .rst (rst),
+        // with Staller
+        .alu_stall (alu_sta_full),
         // with Decoder
-        .alu_stall (alu_dec_stall),
         .alu_enable (dec_alu_write),
         .alu_bus (dec_alu_bus),
-
         // with CDB
         .cdb_in_index (cdb_alu_index),
         .cdb_in_result (cdb_alu_result),
@@ -288,8 +275,10 @@ module CPU (
         .clk (clk),
         .rst (rst),
 
+        // with Staller
+        .fifo_full (rob_sta_full),
+
         // with Decoder
-        .fifo_full (rob_dec_stall),
         .out_lock (rob_dec_rd_lock),
         .write (dec_rob_write),
         .fifo_in (dec_rob_bus),

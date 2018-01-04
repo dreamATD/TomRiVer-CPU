@@ -23,11 +23,11 @@
 module PC (
     input clk,
     input rst,
-    input stall,
-    output reg [`Inst_Addr_Width-1 : 0] pc,
+    // with icache
     output reg ce,
-    output reg cache_stall,
+/*  output reg cache_stall,*/
     // with Decoder
+    output reg [`Inst_Addr_Width-1 : 0] pc,
     input [`Reg_Lock_Width-1    : 0] dec_lock,
     input [`Inst_Addr_Width-1   : 0] dec_offset,
     // with CDB
@@ -35,7 +35,10 @@ module PC (
     input [`Inst_Addr_Width-1   : 0] cdb_result,
     // with ROB
     input rob_modify,
-    input [`Inst_Addr_Width - 1 : 0] rob_npc
+    input [`Inst_Addr_Width - 1 : 0] rob_npc,
+    // with Staller
+    output pc_locked,
+    input stall
 );
 
     reg [`Reg_Lock_Width-1  : 0] lock;
@@ -57,6 +60,8 @@ module PC (
         end
     end
 
+    assign pc_locked = lock != `Reg_No_Lock;
+
     always @ (posedge clk) begin
         if (rst) begin
             ce <= 1'b0;
@@ -72,18 +77,18 @@ module PC (
             pc <= 32'h000000;
         end else if (!stall) begin
             pc <= pc;
-            cache_stall <= 1;
+/*            cache_stall <= 1; */
             if (rob_modify) begin
                 pc <= rob_npc;
-                cache_stall <= 0;
+/*                cache_stall <= 0;*/
             end
             if (lock == `Reg_No_Lock && !rob_modify)  begin
                 pc <= pc + offset;
-                cache_stall <= 0;
+/*                cache_stall <= 0; */
             end
         end else begin
             pc <= pc;
-            cache_stall <= 0;
+/*            cache_stall <= 0; */
         end
     end
 endmodule

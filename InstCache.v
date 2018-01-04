@@ -23,16 +23,16 @@
 module InstCache(
     input ce,
     input [`Inst_Addr_Width-1 : 0] addr,
-    input pc_cache_stall,
+    input stall,
     output reg [`Inst_Width-1 : 0] inst,
     output reg cache_enable
 );
     reg [`Inst_Width-1 : 0] inst_mem[0:128];
 
-    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test6.data", inst_mem);
+    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test5.data", inst_mem);
 
     always @ (*) begin
-        if (!ce || pc_cache_stall) begin
+        if (!ce || stall) begin
             inst <= 0;
             cache_enable <= 0;
         end else begin
