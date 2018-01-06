@@ -37,7 +37,6 @@ module RegFile (
     input [`Reg_Width-1           : 0] name2,
     output reg [`Reg_Lock_Width-1 : 0] lock2,
     output reg [`Data_Width-1     : 0] data2,
-
     input dec_we,
     input [`Reg_Bus_Width-1 : 0] dec_bus
 );

@@ -23,12 +23,10 @@ module Branch_Predictor (
     input clk,
     input rst,
     // with Decoder
-/*    input [`Bra_History_Width-1 : 0] dec_pattern, */
     input [`Bra_Addr_Width-1    : 0] dec_addr,
     output dec_prediction,
     // with ROB
     input brp_update,
-/*    input [`Bra_History_Width-1 : 0] rob_pattern,  */
     input [`Bra_Addr_Width-1    : 0] rob_addr,
     input rob_prediction
 );

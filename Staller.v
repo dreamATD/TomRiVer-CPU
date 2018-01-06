@@ -20,29 +20,52 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module Staller(
+    input clk,
     input rst,
 
     input alu_full,
     input bra_full,
- /*   input lsm_full, */
+    input lsm_full,
     input rob_full,
+    input icache_enable,
+    // with Decoder
     input [`Opcode_Width-1 : 0] op,
+    // with PC
     input pc_locked,
-
     output reg pc_stall,
-    output reg icache_stall
+    // with icache
+    output reg icache_stall,
+    // with ROB
+    input rob_stall,
+    // with LoadStore
+    output lsm_stall
     );
 
     always @ (*) begin
         if (rst) begin
-            pc_stall     = 1;
-            icache_stall = 1;
+            pc_stall     <= 1;
+            icache_stall <= 1;
         end else begin
             case (op)
-                `BRANCH_ : pc_stall <= rob_full || bra_full;
-                default  : pc_stall <= rob_full || alu_full;
+                `BRANCH_ : begin
+                    pc_stall <= !icache_enable || rob_full || bra_full;
+                    icache_stall <= pc_locked  || rob_full || bra_full;
+                end
+                `Load_   : begin
+                    pc_stall <= !icache_enable || rob_full || lsm_full;
+                    icache_stall <= pc_locked  || rob_full || lsm_full;
+                end
+                `Store_  : begin
+                    pc_stall <= !icache_enable || rob_full || lsm_full;
+                    icache_stall <= pc_locked  || rob_full || lsm_full;
+                end
+                default  : begin
+                    pc_stall <= !icache_enable || rob_full || alu_full;
+                    icache_stall <= pc_locked  || rob_full || alu_full;
+                end
             endcase
-            icache_stall <= pc_stall || pc_locked;
         end
     end
+
+    assign lsm_stall = rob_stall;
 endmodule

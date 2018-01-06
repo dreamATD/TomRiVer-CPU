@@ -27,11 +27,11 @@ module Branch_ALU (
     // with Decoder
     input bra_enable,
     input [`Bra_Bus_Width-1    : 0] bra_bus,
-
     // with CDB
-    input  [`Reg_Lock_Width-1  : 0] cdb_in_index,
-    input  [`Data_Width-1      : 0] cdb_in_result,
-
+    input  [`Reg_Lock_Width-1  : 0] cdb_in_index_alu,
+    input  [`Data_Width-1      : 0] cdb_in_result_alu,
+    input  [`Reg_Lock_Width-1  : 0] cdb_in_index_lsm,
+    input  [`Data_Width-1      : 0] cdb_in_result_lsm,
     // with ROB
     output reg rob_out_valid,
     output reg [`ROB_Entry_Width-1 : 0] rob_out_index,
@@ -45,13 +45,26 @@ module Branch_ALU (
     integer i;
     always @ (*) begin
         for (i = 0; i < Bra_Queue_Entry; i = i + 1) begin
-            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Bra_Lock1_Interval] == cdb_in_index) begin
+            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Bra_Lock1_Interval] == cdb_in_index_alu) begin
                 queue[i][`Bra_Lock1_Interval] <= `Reg_No_Lock;
-                queue[i][`Bra_Data1_Interval] <= cdb_in_result;
+                queue[i][`Bra_Data1_Interval] <= cdb_in_result_alu;
             end
-            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Bra_Lock2_Interval] == cdb_in_index) begin
+            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Bra_Lock2_Interval] == cdb_in_index_alu) begin
                 queue[i][`Bra_Lock2_Interval] <= `Reg_No_Lock;
-                queue[i][`Bra_Data2_Interval] <= cdb_in_result;
+                queue[i][`Bra_Data2_Interval] <= cdb_in_result_alu;
+            end
+        end
+    end
+
+    always @ (*) begin
+        for (i = 0; i < Bra_Queue_Entry; i = i + 1) begin
+            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Bra_Lock1_Interval] == cdb_in_index_lsm) begin
+                queue[i][`Bra_Lock1_Interval] <= `Reg_No_Lock;
+                queue[i][`Bra_Data1_Interval] <= cdb_in_result_lsm;
+            end
+            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Bra_Lock2_Interval] == cdb_in_index_lsm) begin
+                queue[i][`Bra_Lock2_Interval] <= `Reg_No_Lock;
+                queue[i][`Bra_Data2_Interval] <= cdb_in_result_lsm;
             end
         end
     end

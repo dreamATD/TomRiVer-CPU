@@ -25,7 +25,6 @@ module PC (
     input rst,
     // with icache
     output reg ce,
-/*  output reg cache_stall,*/
     // with Decoder
     output reg [`Inst_Addr_Width-1 : 0] pc,
     input [`Reg_Lock_Width-1    : 0] dec_lock,
@@ -77,18 +76,14 @@ module PC (
             pc <= 32'h000000;
         end else if (!stall) begin
             pc <= pc;
-/*            cache_stall <= 1; */
             if (rob_modify) begin
                 pc <= rob_npc;
-/*                cache_stall <= 0;*/
             end
             if (lock == `Reg_No_Lock && !rob_modify)  begin
                 pc <= pc + offset;
-/*                cache_stall <= 0; */
             end
         end else begin
             pc <= pc;
-/*            cache_stall <= 0; */
         end
     end
 endmodule

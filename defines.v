@@ -36,15 +36,17 @@
 `define Reg_Bus_Width       (`Reg_Width + `ROB_Entry_Width)
 `define Reg_Name_Interval   (`Reg_Width + `ROB_Entry_Width-1):`ROB_Entry_Width
 `define Reg_Entry_Interval   `ROB_Entry_Width-1:0
-`define ROB_Bus_Width       (2 + `Addr_Width + `Data_Width + 1)
+`define ROB_Op_Width        3
+`define ROB_Bus_Width       (`ROB_Op_Width + `Addr_Width + `Data_Width + 1)
 `define ROB_Valid_Interval  0
 `define ROB_Value_Interval  `Data_Width:1
 `define ROB_Branch_Interval 2:1
 `define ROB_Baddr_Interval  (`Bra_Addr_Width + 2):3
 `define ROB_Reg_Interval    (`Reg_Width + `Data_Width):(`Data_Width + 1)
 `define ROB_Mem_Interval    (`Addr_Width + `Data_Width):(`Data_Width + 1)
+`define ROB_Mem_Suf_Interval (`Data_Width + 2):(`Data_Width + 1)
 `define ROB_Ins_Interval    (`Inst_Addr_Width + `Data_Width):(`Data_Width + 1)
-`define ROB_Op_Interval     (2 +`Addr_Width+`Data_Width):(`Addr_Width+`Data_Width + 1)
+`define ROB_Op_Interval     (`ROB_Op_Width +`Addr_Width+`Data_Width):(`Addr_Width+`Data_Width + 1)
 `define Bra_Bus_Width       `Alu_Bus_Width + 1
 `define Bra_Pre_Interval    0
 `define Bra_Rdlock_Interval `ROB_Entry_Width:1
@@ -53,6 +55,14 @@
 `define Bra_Data1_Interval  (`Data_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width):(`Reg_Lock_Width+`ROB_Entry_Width+`Data_Width + 1)
 `define Bra_Lock1_Interval  (`Reg_Lock_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width+`Data_Width):(`Data_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width + 1)
 `define Bra_Op_Interval     (`Reg_Lock_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width+`Data_Width+`Simp_Op_Width):(`Reg_Lock_Width+`Reg_Lock_Width+`Data_Width+`ROB_Entry_Width+`Data_Width + 1)
+`define Lsm_Bus_Width       (`Simp_Op_Width + `Reg_Lock_Width + `Data_Width + `Reg_Lock_Width + `Data_Width + `Addr_Width + `ROB_Entry_Width)
+`define Lsm_Rdlock_Interval (`ROB_Entry_Width-1):0
+`define Lsm_Offset_Interval (`ROB_Entry_Width + `Addr_Width - 1) : `ROB_Entry_Width
+`define Lsm_Data2_Interval  (`ROB_Entry_Width + `Addr_Width + `Data_Width - 1):(`ROB_Entry_Width + `Addr_Width)
+`define Lsm_Lock2_Interval  (`ROB_Entry_Width + `Addr_Width + `Data_Width + `Reg_Lock_Width - 1):(`ROB_Entry_Width + `Addr_Width + `Data_Width)
+`define Lsm_Data1_Interval  (`ROB_Entry_Width + `Addr_Width + `Data_Width + `Reg_Lock_Width + `Data_Width - 1):(`ROB_Entry_Width + `Addr_Width + `Data_Width + `Reg_Lock_Width)
+`define Lsm_Lock1_Interval  (`ROB_Entry_Width + `Addr_Width + `Data_Width + `Reg_Lock_Width + `Data_Width +`Reg_Lock_Width - 1):(`ROB_Entry_Width + `Addr_Width + `Data_Width + `Reg_Lock_Width + `Data_Width)
+`define Lsm_Op_Interval     (`ROB_Entry_Width + `Addr_Width + `Data_Width + `Reg_Lock_Width + `Data_Width +`Reg_Lock_Width + `Simp_Op_Width - 1):(`ROB_Entry_Width + `Addr_Width + `Data_Width + `Reg_Lock_Width + `Data_Width +`Reg_Lock_Width)
 
 `define Bra_Addr_Width      4
 `define Bra_History_Width   2
@@ -60,10 +70,6 @@
 `define Bra_Entry_Width     (`Bra_Addr_Width + `Bra_History_Width)
 
 
-`define StoreOpcode         7'b0100011
-`define LoadOpcode          7'b0000011
-
-`define Simp_Op_Width       6
 `define Class_Opcode_NOP    7'b0000000
 `define Op_Imm              7'b0010011
 `define Op_                 7'b0110011
@@ -72,9 +78,12 @@
 `define JAL_                7'b1101111
 `define JALR_               7'b1100111
 `define BRANCH_             7'b1100011
+`define Store_              7'b0100011
+`define Load_               7'b0000011
 
 `define NOP_Inst            32'b00000000000000000000000000110011
 
+`define Simp_Op_Width       6
 `define NOP                 6'b000000
 `define ADD                 6'b000001
 `define SUB                 6'b000010
@@ -96,4 +105,16 @@
 `define BLTU                6'b010010
 `define BGE                 6'b010011
 `define BGEU                6'b010100
+`define LB                  6'b010101
+`define LH                  6'b010110
+`define LW                  6'b010111
+`define LBU                 6'b011000
+`define LHU                 6'b011001
+`define SB                  6'b011010
+`define SH                  6'b011011
+`define SW                  6'b011100
+
+`define Addr_Mask           32'd4294967293
+
+`define Block_Offset_Width  6
 `endif

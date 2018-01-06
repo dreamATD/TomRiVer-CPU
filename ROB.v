@@ -25,12 +25,11 @@ module ROB(
     input rst,
     // with Staller
     output fifo_full,
-
+    output store_stall,
     // with Decoder
     output [`ROB_Entry_Width-1 : 0] out_lock,
     input write,
     input [`ROB_Bus_Width-1   : 0] fifo_in,
-
     input check1,
     input [`ROB_Entry_Width-1 : 0] check_entry1,
     output [`Data_Width-1     : 0] check_value1,
@@ -39,32 +38,34 @@ module ROB(
     input [`ROB_Entry_Width-1 : 0] check_entry2,
     output [`Data_Width-1     : 0] check_value2,
     output check_value_enable2,
-
     // with RegFile
     output reg reg_modify,
     output reg [`Reg_Width-1  : 0] reg_name,
     output reg [`Data_Width-1 : 0] reg_data,
     output reg [`ROB_Entry_Width-1 : 0] reg_entry,
-    /*
     // with DataCache
-    output reg mem_modify,
-    output reg [`Addr_Width-1 : 0] mem_addr,
-    output reg [`Data_Width-1 : 0] mem_data,
-    */
+    output reg dcache_write,
+    output reg [3:0] dcache_mask,
+    output reg [`Addr_Width-1 : 0] dcache_addr,
+    output reg [`Data_Width-1 : 0] dcache_data,
+    input dcache_write_valid,
     // with CDB
-    input cdb_write,
-    input [`ROB_Entry_Width-1    : 0] cdb_in_entry,
-    input [`Data_Width-1         : 0] cdb_in_value,
+    input cdb_write_alu,
+    input [`ROB_Entry_Width-1 : 0] cdb_in_entry_alu,
+    input [`Data_Width-1      : 0] cdb_in_value_alu,
+    input cdb_write_lsm,
+    input [`ROB_Entry_Width-1 : 0] cdb_in_entry_lsm,
+    input [`Data_Width-1      : 0] cdb_in_value_lsm,
+    input [`Addr_Width-1      : 0] cdb_in_addr_lsm,
     // with Branch_ALU
     input bra_write,
-    input [`ROB_Entry_Width-1    : 0] bra_in_entry,
-    input [1                     : 0] bra_in_value,
+    input [`ROB_Entry_Width-1 : 0] bra_in_entry,
+    input [1                  : 0] bra_in_value,
     // with PC
     output reg pc_modify,
     output reg [`Inst_Addr_Width-1   : 0] npc,
     // with Branch_Predictor
     output reg brp_update,
-/*    output reg [`Bra_History_Width-1 : 0] brp_pattern, */
     output reg [`Bra_Addr_Width-1    : 0] brp_addr,
     output reg brp_result
 );
@@ -72,25 +73,26 @@ module ROB(
     localparam  ENTRY_NUMBER = 8;
     localparam  ENTRY_WIDTH = 3;
 
-    localparam  Empty_OP    = 2'd0;
-    localparam  Branch      = 2'd1;
-    localparam  Store       = 2'd2;
-    localparam  Normal_Op   = 2'd3;
+    localparam  Empty_OP    = 3'd0;
+    localparam  Branch      = 3'd1;
+    localparam  Normal_Op   = 3'd2;
+    localparam  S_byte      = 3'd3;
+    localparam  S_half      = 3'd4;
+    localparam  S_word      = 3'd5;
 
     reg [DATA_WIDTH-1  : 0] ram [ENTRY_NUMBER-1:0];
     reg [ENTRY_WIDTH-1 : 0] read_ptr, write_ptr, counter;
     wire read_enable;
     reg write_enable;
 
-    reg [`Bra_History_Width-1:0] pattern;
-
     assign fifo_full = (counter == ENTRY_NUMBER);
     assign out_lock = write_ptr;
 
-    assign read_enable = (
-        counter != 0 && ram[read_ptr][0]
+    assign read_enable = counter != 0 && ( ram[read_ptr][0] &&
+         (ram[read_ptr][`ROB_Op_Interval] < S_byte || ram[read_ptr][`ROB_Op_Interval] >= S_byte && dcache_write_valid)
     ) ? 1 : 0;
 
+    assign store_stall = (counter && ram[read_ptr][`ROB_Op_Interval] >= S_byte && !dcache_write_valid);
 
     assign check_value1 = check1 ? ram[check_entry1][`Data_Width:1] : 0;
     assign check_value_enable1 = check1 ? ram[check_entry1][0] : 0;
@@ -99,7 +101,6 @@ module ROB(
 
     always @ (posedge clk) begin
         if(rst) begin
-            pattern    <= 2'b00;
             read_ptr   <= 0;
             write_ptr  <= 0;
             counter    <= 0;
@@ -132,29 +133,63 @@ module ROB(
         end
     end
 
+    task getMask;
+        input [`Simp_Op_Width-1:0] op;
+        input [1:0] suf_addr;
+        input [`Data_Width-1:0] i_data;
+        output reg [3:0] o_mask;
+        output reg [`Data_Width-1:0] o_data;
+        begin
+            case ({op, suf_addr})
+                {`SB, 2'b00}: begin
+                    o_mask <= 4'b0001;
+                    o_data <= i_data;
+                end
+                {`SB, 2'b01}: begin
+                    o_mask <= 4'b0010;
+                    o_data <= i_data << 8;
+                end
+                {`SB, 2'b10}: begin
+                    o_mask <= 4'b0100;
+                    o_data <= i_data << 16;
+                end
+                {`SB, 2'b11}: begin
+                    o_mask <= 4'b1000;
+                    o_data <= i_data << 24;
+                end
+                {`SH, 2'b00}: begin
+                    o_mask <= 4'b0011;
+                    o_data <= i_data;
+                end
+                {`SH, 2'b10}: begin
+                    o_mask <= 4'b1100;
+                    o_data <= i_data << 16;
+                end
+                {`LW, 2'b00}: begin
+                    o_mask <= 4'b1111;
+                    o_data <= i_data;
+                end
+                default : $display ("Address misaligned!");
+            endcase
+        end
+    endtask
+
     wire [`ROB_Bus_Width-1   : 0] read_out;
     assign read_out = ram[read_ptr];
     always @ (read_out, read_ptr, read_enable, write) begin
         reg_modify   <= 0;
         pc_modify    <= 0;
         brp_update   <= 0;
-        pattern      <= pattern;
         write_enable <= write;
-        //mem_modify <= 0;
-        if (read_enable && read_out[`ROB_Valid_Interval])
+        dcache_write <= 0;
+        if (read_enable && read_out[`ROB_Valid_Interval]) begin
             case (read_out[`ROB_Op_Interval])
                 Normal_Op: begin
                     reg_modify <= 1;
                     reg_name   <= read_out[`ROB_Reg_Interval];
                     reg_data   <= read_out[`ROB_Value_Interval];
                     reg_entry  <= read_ptr;
-                end/*
-                Store: begin
-                    reg_modify <= 0;
-                    mem_modify <= 1;
-                    mem_addr   <= fifo_out[1+`Data_Width+`Addr_Width-1:1+`Data_Width];
-                    mem_data   <= fifo_out[1+`Data_Width-1:1];
-                end*/
+                end
                 Branch: begin
                     if (read_out[`ROB_Branch_Interval] == 2'b10 || read_out[`ROB_Branch_Interval] == 2'b01) begin
                         write_enable <= 0;
@@ -166,17 +201,29 @@ module ROB(
                     brp_update <= 1;
                     brp_addr <= read_out[`ROB_Baddr_Interval];
                     brp_result <= read_out[1];
-                    /*brp_pattern <= pattern; */
-                    pattern <= pattern << 1 | read_out[1];
                 end
-                default: ;
+                // store
+                default: begin
+                    dcache_write <= 1;
+                    getMask(read_out[`ROB_Op_Interval], read_out[`ROB_Mem_Suf_Interval],
+                                read_out[`ROB_Value_Interval], dcache_mask, dcache_data);
+                    dcache_addr <= read_out[`ROB_Mem_Interval] & `Addr_Mask;
+                end
             endcase
+        end
     end
 
     always @ (*) begin
-        if (cdb_write && !ram[cdb_in_entry][`ROB_Valid_Interval]) begin
-            ram[cdb_in_entry][`ROB_Valid_Interval] <= 1;
-            ram[cdb_in_entry][`ROB_Value_Interval] <= cdb_in_value;
+        if (cdb_write_alu && !ram[cdb_in_entry_alu][`ROB_Valid_Interval]) begin
+            ram[cdb_in_entry_alu][`ROB_Valid_Interval] <= 1;
+            ram[cdb_in_entry_alu][`ROB_Value_Interval] <= cdb_in_value_alu;
+        end
+        if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval]) begin
+            ram[cdb_in_entry_lsm][`ROB_Valid_Interval] <= 1;
+            ram[cdb_in_entry_lsm][`ROB_Value_Interval] <= cdb_in_value_lsm;
+        end
+        if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval] && ram[cdb_in_entry_lsm][`ROB_Op_Interval] >= S_byte) begin
+            ram[cdb_in_entry_lsm][`ROB_Mem_Interval] <= cdb_in_addr_lsm;
         end
         if (bra_write && !ram[bra_in_entry][`ROB_Valid_Interval]) begin
             ram[bra_in_entry][`ROB_Valid_Interval]  <= 1;

@@ -26,31 +26,62 @@ module CDB(
     // with ALU
     output [`Reg_Lock_Width-1 : 0] alu_out_index_alu,
     output [`Data_Width-1     : 0] alu_out_result_alu,
+    output [`Reg_Lock_Width-1 : 0] alu_out_index_lsm,
+    output [`Data_Width-1     : 0] alu_out_result_lsm,
     input alu_in_valid,
     input [`Reg_Lock_Width-1 : 0] alu_in_index,
     input [`Data_Width-1     : 0] alu_in_result,
     // with Branch_ALU
     output [`Reg_Lock_Width-1 : 0] bra_out_index_alu,
     output [`Data_Width-1     : 0] bra_out_result_alu,
-    // with Load
-    // with Store
+    output [`Reg_Lock_Width-1 : 0] bra_out_index_lsm,
+    output [`Data_Width-1     : 0] bra_out_result_lsm,
+    // with LoadStore
+    output [`Reg_Lock_Width-1 : 0] lsm_out_index_alu,
+    output [`Data_Width-1     : 0] lsm_out_data_alu,
+    output [`Reg_Lock_Width-1 : 0] lsm_out_index_lsm,
+    output [`Data_Width-1     : 0] lsm_out_data_lsm,
+    input lsm_in_valid,
+    input [`Reg_Lock_Width-1 : 0] lsm_in_index,
+    input [`Data_Width-1      : 0] lsm_in_result,
+    input [`Addr_Width-1      : 0] lsm_in_addr,
     // with ROB
     output rob_write_alu,
     output [`ROB_Entry_Width-1 : 0] rob_out_entry_alu,
     output [`Data_Width-1      : 0] rob_out_value_alu,
+    output rob_write_lsm,
+    output [`ROB_Entry_Width-1 : 0] rob_out_entry_lsm,
+    output [`Data_Width-1      : 0] rob_out_value_lsm,
+    output [`Addr_Width-1      : 0] rob_out_addr_lsm,
     // with PC
     output [`Reg_Lock_Width-1 : 0] pc_out_index,
     output [`Data_Width-1     : 0] pc_out_result
 );
     assign alu_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
     assign alu_out_result_alu = alu_in_valid ? alu_in_result : 0;
+    assign alu_out_index_lsm = lsm_in_valid ? lsm_in_index : `Reg_No_Lock;
+    assign alu_out_result_lsm = lsm_in_valid ? lsm_in_result : 0;
+
     assign bra_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
     assign bra_out_result_alu = alu_in_valid ? alu_in_result : 0;
-    assign pc_out_index = alu_in_valid ? alu_in_index : `Reg_No_Lock;
-    assign pc_out_result = alu_in_valid ? alu_in_result : 0;
+    assign bra_out_index_lsm = lsm_in_valid ? lsm_in_index : `Reg_No_Lock;
+    assign bra_out_result_lsm = lsm_in_valid ? lsm_in_result : 0;
+
+    assign lsm_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
+    assign lsm_out_data_alu = alu_in_valid ? alu_in_result : 0;
+    assign lsm_out_index_lsm = lsm_in_valid ? lsm_in_index : `Reg_No_Lock;
+    assign lsm_out_data_lsm = lsm_in_valid ? lsm_in_result : 0;
+
     assign rob_write_alu = alu_in_valid;
     assign rob_out_entry_alu = alu_in_index;
     assign rob_out_value_alu = alu_in_result;
+    assign rob_write_lsm = lsm_in_valid;
+    assign rob_out_entry_lsm = lsm_in_index;
+    assign rob_out_value_lsm = lsm_in_result;
+    assign rob_out_addr_lsm = lsm_in_addr;
+
+    assign pc_out_index = alu_in_valid ? alu_in_index : `Reg_No_Lock;
+    assign pc_out_result = alu_in_valid ? alu_in_result : 0;
 /*
     always @ (posedge clk) begin
         if (rst) begin

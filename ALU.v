@@ -27,10 +27,11 @@ module ALU (
     // with Decoder
     input alu_enable,
     input [`Alu_Bus_Width-1   : 0] alu_bus,
-
     // with CDB
-    input  [`Reg_Lock_Width-1 : 0] cdb_in_index,
-    input  [`Data_Width-1     : 0] cdb_in_result,
+    input  [`Reg_Lock_Width-1 : 0] cdb_in_index_alu,
+    input  [`Data_Width-1     : 0] cdb_in_result_alu,
+    input  [`Reg_Lock_Width-1 : 0] cdb_in_index_lsm,
+    input  [`Data_Width-1     : 0] cdb_in_result_lsm,
     output reg cdb_out_valid,
     output reg [`Reg_Lock_Width-1  : 0] cdb_out_index,
     output reg [`Data_Width-1      : 0] cdb_out_result
@@ -43,13 +44,26 @@ module ALU (
     integer i;
     always @ (*) begin
         for (i = 0; i < Alu_Queue_Entry; i = i + 1) begin
-            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Alu_Lock1_Interval] == cdb_in_index) begin
+            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Alu_Lock1_Interval] == cdb_in_index_alu) begin
                 queue[i][`Alu_Lock1_Interval] <= `Reg_No_Lock;
-                queue[i][`Alu_Data1_Interval] <= cdb_in_result;
+                queue[i][`Alu_Data1_Interval] <= cdb_in_result_alu;
             end
-            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Alu_Lock2_Interval] == cdb_in_index) begin
+            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Alu_Lock2_Interval] == cdb_in_index_alu) begin
                 queue[i][`Alu_Lock2_Interval] <= `Reg_No_Lock;
-                queue[i][`Alu_Data2_Interval] <= cdb_in_result;
+                queue[i][`Alu_Data2_Interval] <= cdb_in_result_alu;
+            end
+        end
+    end
+
+    always @ (*) begin
+        for (i = 0; i < Alu_Queue_Entry; i = i + 1) begin
+            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Alu_Lock1_Interval] == cdb_in_index_lsm) begin
+                queue[i][`Alu_Lock1_Interval] <= `Reg_No_Lock;
+                queue[i][`Alu_Data1_Interval] <= cdb_in_result_lsm;
+            end
+            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Alu_Lock2_Interval] == cdb_in_index_lsm) begin
+                queue[i][`Alu_Lock2_Interval] <= `Reg_No_Lock;
+                queue[i][`Alu_Data2_Interval] <= cdb_in_result_lsm;
             end
         end
     end
@@ -105,7 +119,7 @@ module ALU (
                 cdb_out_valid <= 0;
             end else begin
                 cdb_out_valid <= 1;
-                cdb_out_index <= queue[find_min[0]][`Alu_Rdlock_Interval];
+                cdb_out_index <= {1'b0, queue[find_min[0]][`Alu_Rdlock_Interval]};
             end
             //$display ("op: %b, ORI: %b, cdb_out_valid: %b\n", queue[find_min[0]], `ORI, cdb_out_valid);
             case (queue[find_min[0]][`Alu_Op_Interval])
