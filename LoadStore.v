@@ -178,7 +178,7 @@ module LoadStore(
             if (buf_que && buffer[bread_ptr][`Lsm_Lock1_Interval] == `Reg_No_Lock) begin
                 buffer[bread_ptr]      <= {(`Lsm_Bus_Width){1'b0}};
                 bread_ptr              <= bread_ptr + 1;
-                bcounter               <= bcounter - 1;
+                bcounter <= bcounter - 1;
 
                 dcache_prefetch <= 1;
                 dcache_pre_addr <= trans_addr;
@@ -200,6 +200,10 @@ module LoadStore(
                 qread_ptr             <= qread_ptr + 1;
                 qcounter <= qcounter - 1;
             end
+            if (lsm_write && buf_que && buffer[bread_ptr][`Lsm_Lock1_Interval] == `Reg_No_Lock)
+                bcounter <= bcounter;
+            if (q_read_enable && buf_que && buffer[bread_ptr][`Lsm_Lock1_Interval] == `Reg_No_Lock)
+                qcounter <= qcounter;
         end
     end
 

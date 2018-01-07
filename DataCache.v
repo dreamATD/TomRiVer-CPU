@@ -133,23 +133,25 @@ module CacheWay #(
 ) (
     input clk,
     input modify,
-    input [INDEX_WIDTH-1:0] index,
-    input [BLOCK_OFFSET_WIDTH-1:0] blockoffset,
+    input [INDEX_WIDTH-1:0] read_index,
+    input [BLOCK_OFFSET_WIDTH-1:0] read_blockoffset,
+    input [INDEX_WIDTH-1:0] modify_index,
+    input [BLOCK_OFFSET_WIDTH-1:0] modify_blockoffset,
     input [3:0] i_mask,
     input [`Data_Width-1:0] i_data,
     output [`Data_Width-1:0] o_data
 );
     reg [`Data_Width-1:0] data_array[(1<<INDEX_WIDTH)-1:0][(BLOCK_SIZE>>2)-1:0];
-    assign o_data = data_array[index][blockoffset];
     always @ (posedge clk) begin
         if (modify) begin
-            if (i_mask[0]) data_array[index][blockoffset>>2][7:0] <= i_data[7:0];
-            if (i_mask[1]) data_array[index][blockoffset>>2][15:8] <= i_data[15:8];
-            if (i_mask[2]) data_array[index][blockoffset>>2][23:16] <= i_data[23:16];
-            if (i_mask[3]) data_array[index][blockoffset>>2][31:24] <= i_data[31:24];
+            if (i_mask[0]) data_array[modify_index][modify_blockoffset>>2][7:0] <= i_data[7:0];
+            if (i_mask[1]) data_array[modify_index][modify_blockoffset>>2][15:8] <= i_data[15:8];
+            if (i_mask[2]) data_array[modify_index][modify_blockoffset>>2][23:16] <= i_data[23:16];
+            if (i_mask[3]) data_array[modify_index][modify_blockoffset>>2][31:24] <= i_data[31:24];
         end
     end
-    assign o_data = data_array[index][blockoffset>>2];
+    assign o_data = (read_index == modify_index && (read_blockoffset>>2) == (modify_blockoffset>>2) ? i_data :
+                            data_array[read_index][read_blockoffset>>2]);
 endmodule
 
 module DataCache #(
@@ -201,8 +203,10 @@ module DataCache #(
     reg location, r_location, pre_location;
 
     reg way0_modify, way1_modify;
-    reg [INDEX_WIDTH-1:0] way0_index, way1_index;
-    reg [BLOCK_OFFSET_WIDTH-1:0] way0_blockoffset, way1_blockoffset;
+    reg [INDEX_WIDTH-1:0] way0_read_index, way1_read_index;
+    reg [INDEX_WIDTH-1:0] way0_modify_index, way1_modify_index;
+    reg [BLOCK_OFFSET_WIDTH-1:0] way0_read_blockoffset, way1_read_blockoffset;
+    reg [BLOCK_OFFSET_WIDTH-1:0] way0_modify_blockoffset, way1_modify_blockoffset;
     reg [`Data_Width-1:0] way0_i_data, way1_i_data;
     wire [`Data_Width-1:0] way0_o_data, way1_o_data;
     reg [3:0] way0_mask, way1_mask;
@@ -264,8 +268,10 @@ module DataCache #(
     CacheWay cache_way0 (
         .clk (clk),
         .modify (way0_modify),
-        .index (way0_index),
-        .blockoffset (way0_blockoffset),
+        .read_index (way0_read_index),
+        .read_blockoffset (way0_read_blockoffset),
+        .modify_index (way0_modify_index),
+        .modify_blockoffset (way0_modify_blockoffset),
         .i_mask (way0_mask),
         .i_data (way0_i_data),
         .o_data (way0_o_data)
@@ -274,8 +280,10 @@ module DataCache #(
     CacheWay cache_way1 (
         .clk (clk),
         .modify (way1_modify),
-        .index (way1_index),
-        .blockoffset (way1_blockoffset),
+        .read_index (way1_read_index),
+        .read_blockoffset (way1_read_blockoffset),
+        .modify_index (way1_modify_index),
+        .modify_blockoffset (way1_modify_blockoffset),
         .i_mask (way1_mask),
         .i_data (way1_i_data),
         .o_data (way1_o_data)
@@ -337,31 +345,58 @@ module DataCache #(
         write_done <= 0;
         way0_modify <= 0;
         way1_modify <= 0;
+        way0_read_index <= i_index;
+        way1_read_index <= i_index;
+        way0_read_blockoffset <= i_blockoffset;
+        way1_read_blockoffset <= i_blockoffset;
         wb_i_valid <= 0;
         wb_o_valid <= 0;
         pre_i_valid <= 0;
         pre_o_valid <= 0;
+        if (read && write) $display ("Read and write are both valid.\n");
+        if (read && prefetch) $display ("Read and prefetch are both valid.\n");
+        if (write && prefetch) $display ("write and prefetch are both valid.\n");
+        if (read) begin
+            if (valid_array[i_index][location] && tag_array[i_index][location] == i_tag) begin
+            $display ("fatal error0!");
+                read_done <= 1;
+                case (location)
+                    0: read_data <= way0_o_data;
+                    1: read_data <= way1_o_data;
+                endcase
+            end else if (wb_check_same) begin
+                read_done <= 1;
+                read_data <= wb_check_data;
+            end
+        end
+        if (write) begin
+            if (valid_array[i_index][location] && tag_array[i_index][location] == i_tag) begin
+                case (location)
+                    0: begin
+                        way0_modify <= 1;
+                        way0_i_data <= write_data;
+                        way0_mask <= write_mask;
+                    end
+                    1: begin
+                        way1_modify <= 1;
+                        way1_i_data <= write_data;
+                        way1_mask <= write_mask;
+                    end
+                endcase
+            end
+            if (!wb_full) begin
+                write_done <= 1;
+                wb_i_valid <= 1;
+                wb_i_addr <= write_addr;
+                wb_i_data <= write_data;
+            end
+        end
         case (state)
             STATE_READY: begin
-                if (read && write) $display ("Read and write are both valid.\n");
-                if (read && prefetch) $display ("Read and prefetch are both valid.\n");
-                if (write && prefetch) $display ("write and prefetch are both valid.\n");
-                way0_index <= i_index;
-                way1_index <= i_index;
-                way0_blockoffset <= i_blockoffset;
-                way1_blockoffset <= i_blockoffset;
+                $display ("fatal error1!");
                 case (1'b1)
                     read: begin
-                        if (valid_array[i_index][location] && tag_array[i_index][location] == i_tag) begin
-                            read_done <= 1;
-                            case (location)
-                                0: read_data <= way0_o_data;
-                                1: read_data <= way1_o_data;
-                            endcase
-                        end else if (wb_check_same) begin
-                            read_done <= 1;
-                            read_data <= wb_check_data;
-                        end else begin  // remember to check write_buffer
+                        if (!(valid_array[i_index][location] && tag_array[i_index][location] == i_tag)) begin
                             read_done <= 0;
                             next_state <= STATE_READ_C;
                             r_i_tag <= i_tag;
@@ -371,25 +406,13 @@ module DataCache #(
                         end
                     end
                     write: begin
-                        if (valid_array[i_index][location] && tag_array[i_index][location] == i_tag) begin
-                            case (location)
-                                0: begin
-                                    way0_modify <= 1;
-                                    way0_i_data <= write_data;
-                                    way0_mask <= write_mask;
-                                end
-                                1: begin
-                                    way1_modify <= 1;
-                                    way1_i_data <= write_data;
-                                    way1_mask <= write_mask;
-                                end
-                            endcase
-                        end
-                        if (!wb_full) begin
-                            write_done <= 1;
-                            wb_i_valid <= 1;
-                            wb_i_addr <= write_addr;
-                            wb_i_data <= write_data;
+                        if (wb_full && mem_free) begin
+                            wb_o_valid <= 1;
+                            mem_rw_flag <= WRITE;
+                            mem_addr <= wb_o_addr;
+                            mem_o_data <= wb_o_data;
+                            mem_o_mask <= wb_o_mask;
+                            next_state <= STATE_WRITE;
                         end
                     end
                     default: begin
@@ -414,18 +437,19 @@ module DataCache #(
                     end
                 endcase
                 if (prefetch && !pre_full) begin
+                    $display ("fatal error2!");
                     pre_i_valid <= 1;
                     pre_i_addr <= pre_addr;
                     pre_i_data <= {`Data_Width{1'b0}};
                 end
             end
             STATE_READ_C: begin
-                way0_index <= r_i_index;
-                way1_index <= r_i_index;
+                way0_modify_index <= r_i_index;
+                way1_modify_index <= r_i_index;
                 way0_i_data <= mem_i_data;
                 way1_i_data <= mem_i_data;
-                way0_blockoffset <= r_i_blockoffset;
-                way1_blockoffset <= r_i_blockoffset;
+                way0_modify_blockoffset <= r_i_blockoffset;
+                way1_modify_blockoffset <= r_i_blockoffset;
                 way0_modify <= 0;
                 way1_modify <= 0;
                 way0_mask <= 4'b1111;
@@ -441,12 +465,12 @@ module DataCache #(
                 end
             end
             STATE_READ_N: begin
-                way0_index <= r_i_index;
-                way1_index <= r_i_index;
+                way0_modify_index <= r_i_index;
+                way1_modify_index <= r_i_index;
                 way0_i_data <= mem_i_data;
                 way1_i_data <= mem_i_data;
-                way0_blockoffset <= gen_blockoffset;
-                way1_blockoffset <= gen_blockoffset;
+                way0_modify_blockoffset <= gen_blockoffset;
+                way1_modify_blockoffset <= gen_blockoffset;
                 way0_modify <= 0;
                 way1_modify <= 0;
                 if (mem_read_valid) begin
