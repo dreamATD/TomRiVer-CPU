@@ -134,40 +134,39 @@ module ROB(
     end
 
     task getMask;
-        input [`Simp_Op_Width-1:0] op;
+        input [`ROB_Op_Width-1:0] op;
         input [1:0] suf_addr;
         input [`Data_Width-1:0] i_data;
-        output reg [3:0] o_mask;
-        output reg [`Data_Width-1:0] o_data;
         begin
+            $display ("%b %b %h\n", op, suf_addr, i_data);
             case ({op, suf_addr})
-                {`SB, 2'b00}: begin
-                    o_mask <= 4'b0001;
-                    o_data <= i_data;
+                {S_byte, 2'b00}: begin
+                    dcache_mask <= 4'b0001;
+                    dcache_data <= i_data;
                 end
-                {`SB, 2'b01}: begin
-                    o_mask <= 4'b0010;
-                    o_data <= i_data << 8;
+                {S_byte, 2'b01}: begin
+                    dcache_mask <= 4'b0010;
+                    dcache_data <= i_data << 8;
                 end
-                {`SB, 2'b10}: begin
-                    o_mask <= 4'b0100;
-                    o_data <= i_data << 16;
+                {S_byte, 2'b10}: begin
+                    dcache_mask <= 4'b0100;
+                    dcache_data <= i_data << 16;
                 end
-                {`SB, 2'b11}: begin
-                    o_mask <= 4'b1000;
-                    o_data <= i_data << 24;
+                {S_byte, 2'b11}: begin
+                    dcache_mask <= 4'b1000;
+                    dcache_data <= i_data << 24;
                 end
-                {`SH, 2'b00}: begin
-                    o_mask <= 4'b0011;
-                    o_data <= i_data;
+                {S_half, 2'b00}: begin
+                    dcache_mask <= 4'b0011;
+                    dcache_data <= i_data;
                 end
-                {`SH, 2'b10}: begin
-                    o_mask <= 4'b1100;
-                    o_data <= i_data << 16;
+                {S_half, 2'b10}: begin
+                    dcache_mask <= 4'b1100;
+                    dcache_data <= i_data << 16;
                 end
-                {`LW, 2'b00}: begin
-                    o_mask <= 4'b1111;
-                    o_data <= i_data;
+                {S_word, 2'b00}: begin
+                    dcache_mask <= 4'b1111;
+                    dcache_data <= i_data;
                 end
                 default : $display ("Address misaligned!");
             endcase
@@ -176,13 +175,13 @@ module ROB(
 
     wire [`ROB_Bus_Width-1   : 0] read_out;
     assign read_out = ram[read_ptr];
-    always @ (read_out, read_ptr, read_enable, write) begin
+    always @ (read_out, read_ptr, read_enable, write, counter, ram[read_ptr][0]) begin
         reg_modify   <= 0;
         pc_modify    <= 0;
         brp_update   <= 0;
         write_enable <= write;
         dcache_write <= 0;
-        if (read_enable && read_out[`ROB_Valid_Interval]) begin
+        if (counter &&  ram[read_ptr][0] && read_out[`ROB_Valid_Interval]) begin
             case (read_out[`ROB_Op_Interval])
                 Normal_Op: begin
                     reg_modify <= 1;
@@ -206,7 +205,7 @@ module ROB(
                 default: begin
                     dcache_write <= 1;
                     getMask(read_out[`ROB_Op_Interval], read_out[`ROB_Mem_Suf_Interval],
-                                read_out[`ROB_Value_Interval], dcache_mask, dcache_data);
+                                read_out[`ROB_Value_Interval]);
                     dcache_addr <= read_out[`ROB_Mem_Interval] & `Addr_Mask;
                 end
             endcase

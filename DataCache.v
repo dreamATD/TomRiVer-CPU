@@ -39,7 +39,7 @@ module fifo_buffer #(
     input out_valid,
     output [`Addr_Width-1 : 0] fifo_out_addr,
     output [`Data_Width-1 : 0] fifo_out_data,
-    input [3              : 0] fifo_out_mask,
+    output [3              : 0] fifo_out_mask,
 
     input [`Addr_Width-1 : 0] check_addr,
     output reg [`Data_Width-1 : 0] check_data,
@@ -105,8 +105,8 @@ module fifo_buffer #(
                             addr_array[in_ptr] <= fifo_in_addr;
                             data_array[in_ptr] <= fifo_in_data;
                         end
-                        valid_array[out_ptr] <= 0;
-                        out_ptr <= out_ptr + 1;
+                            valid_array[out_ptr] <= 0;
+                            out_ptr <= out_ptr + 1;
                     end
                 end
             endcase
@@ -225,7 +225,8 @@ module DataCache #(
     wire [`Addr_Width-1:0] wb_o_addr;
     reg [`Data_Width-1:0] wb_i_data;
     wire [`Data_Width-1:0] wb_o_data, wb_check_data;
-    reg [3:0] wb_i_mask, wb_o_mask;
+    reg [3:0] wb_i_mask;
+    wire [3:0] wb_o_mask;
 
     fifo_buffer prefetch_buffer (
         .clk (clk),
@@ -389,6 +390,7 @@ module DataCache #(
                 wb_i_valid <= 1;
                 wb_i_addr <= write_addr;
                 wb_i_data <= write_data;
+                wb_i_mask <= write_mask;
             end
         end
         case (state)

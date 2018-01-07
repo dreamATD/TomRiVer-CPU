@@ -128,7 +128,7 @@ module Decoder (
         (op == `Load_                                      ) && func3 == 3'b101 ? `LHU :
         (op == `Store_                                     ) && func3 == 3'b000 ? `SB :
         (op == `Store_                                     ) && func3 == 3'b001 ? `SH :
-        (op == `Store_                                     ) && func3 == 3'b010 ? `SB :
+        (op == `Store_                                     ) && func3 == 3'b010 ? `SW :
                                                                                     0
     ); // wait to be optimized.
 
