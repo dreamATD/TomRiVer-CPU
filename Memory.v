@@ -28,7 +28,7 @@ module InstMemory(
 );
     reg [`Inst_Width-1 : 0] inst_mem[0:128];
 
-    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test9.data", inst_mem);
+    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test10.data", inst_mem);
 
     always @ (*) begin
         if (read) begin

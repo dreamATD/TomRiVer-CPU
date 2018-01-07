@@ -36,7 +36,7 @@ module PC (
     input rob_modify,
     input [`Inst_Addr_Width - 1 : 0] rob_npc,
     // with Staller
-    output pc_locked,
+    output reg pc_locked,
     input stall
 );
 
@@ -45,12 +45,13 @@ module PC (
 
     always @ (dec_lock, cdb_index, cdb_result, dec_offset) begin
         if (!rst && lock == `Reg_No_Lock && dec_lock == `Reg_No_Lock) begin
+            $display("%%");
             lock <= `Reg_No_Lock;
             offset <= dec_offset;
         end
         if (!rst && lock == `Reg_No_Lock && dec_lock != `Reg_No_Lock) begin
             lock <= dec_lock;
-            $display("##");
+            $display("## %b", dec_lock);
         end
         if (!rst && lock != `Reg_No_Lock && cdb_index == lock) begin
             lock <= `Reg_No_Lock;
@@ -58,8 +59,6 @@ module PC (
             offset <= cdb_result;
         end
     end
-
-    assign pc_locked = lock != `Reg_No_Lock;
 
     always @ (posedge clk) begin
         if (rst) begin
@@ -74,7 +73,9 @@ module PC (
     always @ (posedge clk) begin
         if (ce == 1'b0) begin
             pc <= 32'h000000;
+            pc_locked <= 0;
         end else if (!stall) begin
+            pc_locked <= (lock != `Reg_No_Lock);
             pc <= pc;
             if (rob_modify) begin
                 pc <= rob_npc;
