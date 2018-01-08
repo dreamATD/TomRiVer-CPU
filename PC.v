@@ -43,7 +43,7 @@ module PC (
     reg [`Reg_Lock_Width-1  : 0] lock;
     reg [`Inst_Addr_Width-1 : 0] offset;
 
-    always @ (dec_lock, cdb_index, cdb_result, dec_offset) begin
+    always @ (negedge clk) begin
         if (!rst && lock == `Reg_No_Lock && dec_lock == `Reg_No_Lock) begin
             $display("%%");
             lock <= `Reg_No_Lock;
