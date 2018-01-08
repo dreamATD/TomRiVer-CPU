@@ -54,7 +54,8 @@ module LoadStore(
     reg [`Addr_Width-1      : 0] queue_addr[Lsm_Queue_Entry-1:0];
     reg [`Reg_Lock_Width-1  : 0] queue_lock[Lsm_Queue_Entry-1:0];
     reg [`Data_Width-1      : 0] queue_data[Lsm_Queue_Entry-1:0];
-    reg [Lsm_Queue_Width-1  : 0] qread_ptr, qwrite_ptr, bread_ptr, bwrite_ptr, bcounter, qcounter;
+    reg [Lsm_Queue_Width-1  : 0] qread_ptr, qwrite_ptr, bread_ptr, bwrite_ptr;
+    reg [Lsm_Queue_Width  : 0] bcounter, qcounter;
 
     wire buf_que;
     wire [`Simp_Op_Width-1   : 0] trans_op;
@@ -210,7 +211,6 @@ module LoadStore(
     always @ (*) begin
         cdb_out_valid <= 0;
         dcache_read <= 0;
-        cdb_out_valid <= 0;
         cdb_out_index <= `Reg_No_Lock;
         if (out_lock == `Reg_No_Lock && qcounter) begin
             case (out_op)

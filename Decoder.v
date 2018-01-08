@@ -202,7 +202,7 @@ module Decoder (
                          S_word
     );
 
-    always @ (clk) begin
+    always @ (negedge clk) begin
         if (rst) begin
             bra_write <= 0;
             alu_write <= 0;

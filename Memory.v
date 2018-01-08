@@ -28,7 +28,7 @@ module InstMemory(
 );
     reg [`Inst_Width-1 : 0] inst_mem[0:128];
 
-    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test10.data", inst_mem);
+    initial $readmemh ("E:/dreamATD/homework/myCPU/myCPU.srcs/sources_1/new/test11.data", inst_mem);
 
     always @ (*) begin
         if (read) begin
@@ -72,6 +72,7 @@ module DataMemory(
         input [`Addr_Width-1:0] addr;
         input [`Data_Width-1:0] data;
         begin
+            $display ("%d %h %b", (addr>>2), data, mask);
             if (mask[0]) data_mem[addr>>2][7:0] <= data[7:0];
             if (mask[1]) data_mem[addr>>2][15:8] <= data[15:8];
             if (mask[2]) data_mem[addr>>2][23:16] <= data[23:16];

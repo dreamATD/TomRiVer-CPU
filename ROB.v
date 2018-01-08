@@ -81,9 +81,13 @@ module ROB(
     localparam  S_word      = 3'd5;
 
     reg [DATA_WIDTH-1  : 0] ram [ENTRY_NUMBER-1:0];
-    reg [ENTRY_WIDTH-1 : 0] read_ptr, write_ptr, counter;
+    reg [ENTRY_WIDTH-1 : 0] read_ptr, write_ptr;
+    reg [ENTRY_WIDTH : 0] counter;
     wire read_enable;
     reg write_enable;
+    wire [`ROB_Bus_Width-1   : 0] read_out;
+
+    assign read_out = ram[read_ptr];
 
     assign fifo_full = (counter == ENTRY_NUMBER);
     assign out_lock = write_ptr;
@@ -92,7 +96,10 @@ module ROB(
          (ram[read_ptr][`ROB_Op_Interval] < S_byte || ram[read_ptr][`ROB_Op_Interval] >= S_byte && dcache_write_valid)
     ) ? 1 : 0;
 
-    assign store_stall = (counter && ram[read_ptr][`ROB_Op_Interval] >= S_byte && !dcache_write_valid);
+    assign store_stall = !(counter && read_out[`ROB_Op_Interval] >= S_byte && dcache_write_valid);
+    always @ (*) begin
+        $display ("%b %b", read_out[`ROB_Op_Interval], (read_out[`ROB_Op_Interval] >= S_byte));
+    end
 
     assign check_value1 = check1 ? ram[check_entry1][`Data_Width:1] : 0;
     assign check_value_enable1 = check1 ? ram[check_entry1][0] : 0;
@@ -116,7 +123,7 @@ module ROB(
                 end
                 2'b10: begin
                     counter  <= counter-1;
-                    ram[read_ptr] <= 0;
+                    ram[read_ptr] <= {(`ROB_Bus_Width){1'b0}};
                     read_ptr <= read_ptr + 1;
                 end
                 2'b11: begin
@@ -125,7 +132,7 @@ module ROB(
                     else begin
                         ram[write_ptr] <= fifo_in;
                         write_ptr <= write_ptr + 1;
-                        ram[read_ptr] <= 0;
+                        ram[read_ptr] <= {(`ROB_Bus_Width){1'b0}};
                         read_ptr  <= read_ptr + 1;
                     end
                 end
@@ -173,9 +180,7 @@ module ROB(
         end
     endtask
 
-    wire [`ROB_Bus_Width-1   : 0] read_out;
-    assign read_out = ram[read_ptr];
-    always @ (read_out, read_ptr, read_enable, write, counter, ram[read_ptr][0]) begin
+    always @ (*) begin
         reg_modify   <= 0;
         pc_modify    <= 0;
         brp_update   <= 0;
@@ -184,6 +189,7 @@ module ROB(
         if (counter &&  ram[read_ptr][0] && read_out[`ROB_Valid_Interval]) begin
             case (read_out[`ROB_Op_Interval])
                 Normal_Op: begin
+                    $display ("doubt %b", read_out[`ROB_Value_Interval]);
                     reg_modify <= 1;
                     reg_name   <= read_out[`ROB_Reg_Interval];
                     reg_data   <= read_out[`ROB_Value_Interval];
@@ -192,7 +198,7 @@ module ROB(
                 Branch: begin
                     if (read_out[`ROB_Branch_Interval] == 2'b10 || read_out[`ROB_Branch_Interval] == 2'b01) begin
                         write_enable <= 0;
-                        write_ptr    <= read_ptr;
+                        write_ptr    <= read_ptr + 1;
                         counter      <= 0;
                         pc_modify    <= 1;
                         npc          <= read_out[`ROB_Ins_Interval];
@@ -212,21 +218,23 @@ module ROB(
         end
     end
 
-    always @ (*) begin
+    always @ (negedge clk) begin
         if (cdb_write_alu && !ram[cdb_in_entry_alu][`ROB_Valid_Interval]) begin
-            ram[cdb_in_entry_alu][`ROB_Valid_Interval] <= 1;
             ram[cdb_in_entry_alu][`ROB_Value_Interval] <= cdb_in_value_alu;
+            ram[cdb_in_entry_alu][`ROB_Valid_Interval] <= 1;
+            $display ("wrong");
         end
         if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval]) begin
-            ram[cdb_in_entry_lsm][`ROB_Valid_Interval] <= 1;
             ram[cdb_in_entry_lsm][`ROB_Value_Interval] <= cdb_in_value_lsm;
+            ram[cdb_in_entry_lsm][`ROB_Valid_Interval] <= 1;
+            $display ("correct %b", cdb_in_value_lsm);
         end
         if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval] && ram[cdb_in_entry_lsm][`ROB_Op_Interval] >= S_byte) begin
             ram[cdb_in_entry_lsm][`ROB_Mem_Interval] <= cdb_in_addr_lsm;
         end
         if (bra_write && !ram[bra_in_entry][`ROB_Valid_Interval]) begin
-            ram[bra_in_entry][`ROB_Valid_Interval]  <= 1;
             ram[bra_in_entry][`ROB_Branch_Interval] <= bra_in_value;
+            ram[bra_in_entry][`ROB_Valid_Interval]  <= 1;
         end
     end
 endmodule

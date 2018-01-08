@@ -156,6 +156,7 @@ module InstCache #(
                         r_i_tag         <= i_tag;
                         r_location      <= location;
                         o_data_addr     <= i_address;
+                        valid_array[i_index][location] <= 0;
                     end
                 end
                 STATE_MISS_READ: begin
