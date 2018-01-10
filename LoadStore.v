@@ -79,9 +79,9 @@ module LoadStore(
                 buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
                 buffer[i][`Lsm_Data1_Interval] <= cdb_in_data_alu;
             end
-            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && cdb_in_index_alu == buffer[i][`Lsm_Lock1_Interval]) begin
-                buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
-                buffer[i][`Lsm_Data1_Interval] <= cdb_in_data_alu;
+            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && cdb_in_index_alu == buffer[i][`Lsm_Lock2_Interval]) begin
+                buffer[i][`Lsm_Lock2_Interval] <= `Reg_No_Lock;
+                buffer[i][`Lsm_Data2_Interval] <= cdb_in_data_alu;
             end
             if (queue_op[i] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue_lock[i] == cdb_in_index_alu) begin
                 queue_data[i] <= cdb_in_data_alu;
@@ -97,9 +97,9 @@ module LoadStore(
                 buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
                 buffer[i][`Lsm_Data1_Interval] <= cdb_in_data_lsm;
             end
-            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && cdb_in_index_lsm == buffer[i][`Lsm_Lock1_Interval]) begin
-                buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
-                buffer[i][`Lsm_Data1_Interval] <= cdb_in_data_lsm;
+            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && cdb_in_index_lsm == buffer[i][`Lsm_Lock2_Interval]) begin
+                buffer[i][`Lsm_Lock2_Interval] <= `Reg_No_Lock;
+                buffer[i][`Lsm_Data2_Interval] <= cdb_in_data_lsm;
             end
             if (queue_op[i] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue_lock[i] == cdb_in_index_lsm) begin
                 queue_data[i] <= cdb_in_data_lsm;
