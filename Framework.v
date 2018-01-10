@@ -70,7 +70,7 @@ module Framework (
     wire [3:0] dcache_mem_i_mask;
     wire [`Data_Width-1:0] mem_dcache_o_data;
 
-    CPU cpu0(
+    CPUCore cpu_core0(
         .clk (clk),
         .rst (rst),
         // with icache

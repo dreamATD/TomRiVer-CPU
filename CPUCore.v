@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 `include "defines.v"
 
-module CPU (
+module CPUCore (
     input clk,
     input rst,
     // with icache
