@@ -125,13 +125,11 @@ module InstCache #(
                         o_data  <= i_mem_data;
                     end
                     if (gen_count + 1 == (BLOCK_SIZE >> 2) || !(i_mem_data[1:0] === 2'b11)) begin
-                        $display ("Right %b", i_mem_data);
                         next_state <= STATE_READY;
                     end
                 end
             end
             default : begin
-                $display ("Warning: Invalid state @ i_cache.v: %d", $time);
             end
         endcase
     end

@@ -102,7 +102,10 @@ module ALU (
             end
             cdb_out_valid <= 0;
         end else begin
-            queue[find_min[0]] <= {`Alu_Bus_Width{1'b0}};
+            if (queue[find_min[0]][`Alu_Op_Interval] != `NOP &&
+                queue[find_min[0]][`Alu_Lock1_Interval] == `Reg_No_Lock &&
+                queue[find_min[0]][`Alu_Lock2_Interval] == `Reg_No_Lock
+            ) queue[find_min[0]] <= {`Alu_Bus_Width{1'b0}};
             if (alu_enable && queue[find_empty[0]][`Alu_Op_Interval] == `NOP) begin
                 queue[find_empty[0]] <= alu_bus;
             end
@@ -110,7 +113,6 @@ module ALU (
     end
 
     always @ (*) begin
-        //$display ("queue: %b, min: %b\n", queue[find_min[0]], find_min[0]);
         if (queue[find_min[0]][`Alu_Op_Interval] != `NOP &&
             queue[find_min[0]][`Alu_Lock1_Interval] == `Reg_No_Lock &&
             queue[find_min[0]][`Alu_Lock2_Interval] == `Reg_No_Lock
@@ -121,7 +123,6 @@ module ALU (
                 cdb_out_valid <= 1;
                 cdb_out_index <= {1'b0, queue[find_min[0]][`Alu_Rdlock_Interval]};
             end
-            //$display ("op: %b, ORI: %b, cdb_out_valid: %b\n", queue[find_min[0]], `ORI, cdb_out_valid);
             case (queue[find_min[0]][`Alu_Op_Interval])
                 `ADD  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) + $signed(queue[find_min[0]][`Alu_Data2_Interval]);
                 `SUB  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) - $signed(queue[find_min[0]][`Alu_Data2_Interval]);

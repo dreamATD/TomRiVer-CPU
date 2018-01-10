@@ -41,7 +41,13 @@ module Staller(
     output lsm_stall
     );
 
-    always @ (*) begin
+    always @ (negedge clk) begin
+        $display ("staller");
+        $display ("op %h", op);
+        $display ("icache_enable %h", icache_enable);
+        $display ("rob_full %h", rob_full);
+        $display ("lsm_full %h", lsm_full);
+        $display ("pc_locked %h", pc_locked);
         if (rst) begin
             pc_stall     <= 1;
             icache_stall <= 1;

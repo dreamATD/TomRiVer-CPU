@@ -24,7 +24,7 @@ module ROB(
     input clk,
     input rst,
     // with Staller
-    output fifo_full,
+    output fifo_stall,
     output store_stall,
     // with Decoder
     output [`ROB_Entry_Width-1 : 0] out_lock,
@@ -83,12 +83,13 @@ module ROB(
     reg [DATA_WIDTH-1  : 0] ram [ENTRY_NUMBER-1:0];
     reg [ENTRY_WIDTH-1 : 0] read_ptr, write_ptr;
     reg [ENTRY_WIDTH : 0] counter;
-    wire read_enable;
+    wire read_enable, fifo_full;
     reg write_enable;
     wire [`ROB_Bus_Width-1   : 0] read_out;
 
     assign read_out = ram[read_ptr];
 
+    assign fifo_stall = (counter >= ENTRY_NUMBER - 1);
     assign fifo_full = (counter == ENTRY_NUMBER);
     assign out_lock = write_ptr;
 
@@ -97,9 +98,6 @@ module ROB(
     ) ? 1 : 0;
 
     assign store_stall = !(counter && read_out[`ROB_Op_Interval] >= S_byte && dcache_write_valid);
-    always @ (*) begin
-        $display ("%b %b", read_out[`ROB_Op_Interval], (read_out[`ROB_Op_Interval] >= S_byte));
-    end
 
     assign check_value1 = check1 ? ram[check_entry1][`Data_Width:1] : 0;
     assign check_value_enable1 = check1 ? ram[check_entry1][0] : 0;
@@ -145,7 +143,6 @@ module ROB(
         input [1:0] suf_addr;
         input [`Data_Width-1:0] i_data;
         begin
-            $display ("%b %b %h\n", op, suf_addr, i_data);
             case ({op, suf_addr})
                 {S_byte, 2'b00}: begin
                     dcache_mask <= 4'b0001;
@@ -181,15 +178,15 @@ module ROB(
     endtask
 
     always @ (*) begin
+        $display ("mark: rob");
         reg_modify   <= 0;
         pc_modify    <= 0;
         brp_update   <= 0;
-        write_enable <= write;
+        write_enable <= write && !fifo_full;
         dcache_write <= 0;
         if (counter &&  ram[read_ptr][0] && read_out[`ROB_Valid_Interval]) begin
             case (read_out[`ROB_Op_Interval])
                 Normal_Op: begin
-                    $display ("doubt %b", read_out[`ROB_Value_Interval]);
                     reg_modify <= 1;
                     reg_name   <= read_out[`ROB_Reg_Interval];
                     reg_data   <= read_out[`ROB_Value_Interval];
@@ -197,9 +194,10 @@ module ROB(
                 end
                 Branch: begin
                     if (read_out[`ROB_Branch_Interval] == 2'b10 || read_out[`ROB_Branch_Interval] == 2'b01) begin
+                    $display ("readout: %h, %b", read_out, read_out[`ROB_Branch_Interval]);
                         write_enable <= 0;
                         write_ptr    <= read_ptr + 1;
-                        counter      <= 0;
+                        counter      <= 1;
                         pc_modify    <= 1;
                         npc          <= read_out[`ROB_Ins_Interval];
                     end
@@ -227,7 +225,6 @@ module ROB(
         if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval]) begin
             ram[cdb_in_entry_lsm][`ROB_Value_Interval] <= cdb_in_value_lsm;
             ram[cdb_in_entry_lsm][`ROB_Valid_Interval] <= 1;
-            $display ("correct %b", cdb_in_value_lsm);
         end
         if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval] && ram[cdb_in_entry_lsm][`ROB_Op_Interval] >= S_byte) begin
             ram[cdb_in_entry_lsm][`ROB_Mem_Interval] <= cdb_in_addr_lsm;

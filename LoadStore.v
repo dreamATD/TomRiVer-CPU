@@ -36,7 +36,7 @@ module LoadStore(
     output reg [`Data_Width-1      : 0] cdb_out_data,
     output reg [`Addr_Width-1      : 0] cdb_out_addr,
     // with Staller
-    output buffer_full,
+    output buffer_stall,
     input rob_stall,
     // with DataCache
     output reg dcache_prefetch,
@@ -73,6 +73,7 @@ module LoadStore(
 
     integer i;
     always @ (*) begin
+        $display ("mark:loadStore2");
         for (i = 0; i < Lsm_Queue_Entry; i = i + 1) begin
             if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && cdb_in_index_alu == buffer[i][`Lsm_Lock1_Interval]) begin
                 buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
@@ -90,6 +91,7 @@ module LoadStore(
     end
 
     always @ (*) begin
+        $display ("mark:loadStore1");
         for (i = 0; i < Lsm_Queue_Entry; i = i + 1) begin
             if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && cdb_in_index_lsm == buffer[i][`Lsm_Lock1_Interval]) begin
                 buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
@@ -108,7 +110,7 @@ module LoadStore(
 
 
 
-    assign buffer_full = (bcounter == Lsm_Queue_Entry);
+    assign buffer_stall = (bcounter >= Lsm_Queue_Entry - 1);
     assign buf_que = (bcounter && (qcounter < Lsm_Queue_Entry));
     assign trans_op = buffer[bread_ptr][`Lsm_Op_Interval];
     assign trans_aim = buffer[bread_ptr][`Lsm_Rdlock_Interval];
@@ -133,7 +135,6 @@ module LoadStore(
         input [1:0] task_suf_addr;
 
         begin
-            $display ("op: %b suf_addr: %b", task_op, task_suf_addr);
             case ({task_op, task_suf_addr})
                 {`LB, 2'b00}: cdb_out_data  <= {{24{task_i_data[7]}}, task_i_data[7:0]};
                 {`LBU, 2'b00}: cdb_out_data <= {24'd0, task_i_data[7:0]};
@@ -209,6 +210,7 @@ module LoadStore(
     end
 
     always @ (*) begin
+        $display ("mark:loadStore0");
         cdb_out_valid <= 0;
         dcache_read <= 0;
         cdb_out_index <= `Reg_No_Lock;

@@ -103,7 +103,10 @@ module Branch_ALU (
             end
             rob_out_valid <= 0;
         end else begin
-            queue[find_min[0]] <= {`Bra_Bus_Width{1'b0}};
+            if (queue[find_min[0]][`Bra_Op_Interval] != `NOP &&
+                queue[find_min[0]][`Bra_Lock1_Interval] == `Reg_No_Lock &&
+                queue[find_min[0]][`Bra_Lock2_Interval] == `Reg_No_Lock
+            ) queue[find_min[0]] <= {`Bra_Bus_Width{1'b0}};
             if (bra_enable && queue[find_empty[0]][`Bra_Op_Interval] == `NOP) begin
                 queue[find_empty[0]] <= bra_bus;
             end
@@ -111,7 +114,6 @@ module Branch_ALU (
     end
 
     always @ (*) begin
-        //$display ("queue: %b, min: %b\n", queue[find_min[0]], find_min[0]);
         if (queue[find_min[0]][`Bra_Op_Interval] != `NOP &&
             queue[find_min[0]][`Bra_Lock1_Interval] == `Reg_No_Lock &&
             queue[find_min[0]][`Bra_Lock2_Interval] == `Reg_No_Lock
@@ -122,7 +124,6 @@ module Branch_ALU (
                 rob_out_valid <= 1;
                 rob_out_index <= queue[find_min[0]][`Bra_Rdlock_Interval];
             end
-            //$display ("op: %b, ORI: %b, cdb_out_valid: %b\n", queue[find_min[0]], `ORI, cdb_out_valid);
             case (queue[find_min[0]][`Bra_Op_Interval])
                 `BEQ  : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] == queue[find_min[0]][`Bra_Data2_Interval])};
                 `BNE  : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] != queue[find_min[0]][`Bra_Data2_Interval])};
@@ -133,7 +134,6 @@ module Branch_ALU (
                 default: ;
             endcase
         end else begin
-            //$display ("valid to 0!");
             rob_out_valid <= 0;
         end
     end

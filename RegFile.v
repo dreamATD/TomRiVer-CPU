@@ -59,12 +59,10 @@ module RegFile (
                 dat[namew] <= dataw;
                 val[namew] <= 1;
                 if (loc[namew] == {1'b0, entryw} && (!dec_we || dec_we && dec_bus[`Reg_Name_Interval] != namew)) begin
-                    $display("preg_name: %b, reg_lock: %b\n", dec_bus[`Reg_Name_Interval], {1'b0, dec_bus[`Reg_Entry_Interval]});
                     loc[namew] <= `Reg_No_Lock;
                 end
         end
         if (dec_we && dec_bus[`Reg_Name_Interval]) begin
-            $display("reg_name: %b, reg_lock: %b\n", dec_bus[`Reg_Name_Interval], {1'b0, dec_bus[`Reg_Entry_Interval]});
             loc[dec_bus[`Reg_Name_Interval]] <= {1'b0, dec_bus[`Reg_Entry_Interval]};
         end
     end

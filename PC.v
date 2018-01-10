@@ -43,19 +43,16 @@ module PC (
     reg [`Reg_Lock_Width-1  : 0] lock;
     reg [`Inst_Addr_Width-1 : 0] offset;
 
-    always @ (negedge clk) begin
+    always @ (*) begin
         if (!rst && lock == `Reg_No_Lock && dec_lock == `Reg_No_Lock) begin
-            $display("%%");
             lock <= `Reg_No_Lock;
             offset <= dec_offset;
         end
         if (!rst && lock == `Reg_No_Lock && dec_lock != `Reg_No_Lock) begin
             lock <= dec_lock;
-            $display("## %b", dec_lock);
         end
         if (!rst && lock != `Reg_No_Lock && cdb_index == lock) begin
             lock <= `Reg_No_Lock;
-            $display("@@");
             offset <= cdb_result;
         end
     end

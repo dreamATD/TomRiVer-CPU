@@ -39,8 +39,10 @@ module Framework (
     wire [`Inst_Width-1:0] icache_dec_inst;
 
     // between dcache and loadStore
+    /*
     wire lsm_dcache_prefetch;
     wire [`Addr_Width-1 : 0]  lsm_dcache_pre_addr;
+    */
     wire lsm_dcache_read;
     wire [`Addr_Width-1 : 0] lsm_dcache_read_addr;
     wire dcache_lsm_read_done;
@@ -80,8 +82,10 @@ module Framework (
         .sta_icache_stall (sta_icache_stall),
         .icache_addr (icache_addr),
         // between dcache and LoadStore
+        /*
         .lsm_dcache_prefetch (lsm_dcache_prefetch),
         .lsm_dcache_pre_addr (lsm_dcache_pre_addr),
+        */
         .lsm_dcache_read (lsm_dcache_read),
         .lsm_dcache_read_addr (lsm_dcache_read_addr),
         .dcache_lsm_read_done (dcache_lsm_read_done),
@@ -118,8 +122,10 @@ module Framework (
         .clk (clk),
         .rst (rst),
         // with LoadStore
+        /*
         .prefetch (lsm_dcache_prefetch),
         .pre_addr (lsm_dcache_pre_addr),
+        */
         .read (lsm_dcache_read),
         .read_addr(lsm_dcache_read_addr),
         .read_done (dcache_lsm_read_done),

@@ -32,8 +32,10 @@ module CPU (
     output sta_icache_stall,
     output [`Inst_Addr_Width-1 : 0] icache_addr,
     // between dcache and LoadStore
+    /*
     input lsm_dcache_prefetch,
     input [`Addr_Width-1 : 0]  lsm_dcache_pre_addr,
+    */
     input lsm_dcache_read,
     input [`Addr_Width-1 : 0] lsm_dcache_read_addr,
     output dcache_lsm_read_done,
@@ -305,11 +307,13 @@ module CPU (
         .cdb_out_data (lsm_cdb_data),
         .cdb_out_addr (lsm_cdb_addr),
         // with Staller
-        .buffer_full (lsm_sta_full),
+        .buffer_stall (lsm_sta_full),
         .rob_stall (sta_lsm_store_stall),
         // with DataCache
+        /*
         .dcache_prefetch (lsm_dcache_prefetch),
         .dcache_pre_addr (lsm_dcache_pre_addr),
+        */
         .dcache_read (lsm_dcache_read),
         .dcache_read_addr (lsm_dcache_read_addr),
         .dcache_read_done (dcache_lsm_read_done),
@@ -358,7 +362,7 @@ module CPU (
         .clk (clk),
         .rst (rst),
         // with Staller
-        .fifo_full (rob_sta_full),
+        .fifo_stall (rob_sta_full),
         .store_stall (rob_sta_store_stall),
         // with Decoder
         .out_lock (rob_dec_rd_lock),
