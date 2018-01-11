@@ -32,10 +32,6 @@ module CPUCore (
     output sta_icache_stall,
     output [`Inst_Addr_Width-1 : 0] icache_addr,
     // between dcache and LoadStore
-    /*
-    input lsm_dcache_prefetch,
-    input [`Addr_Width-1 : 0]  lsm_dcache_pre_addr,
-    */
     input lsm_dcache_read,
     input [`Addr_Width-1 : 0] lsm_dcache_read_addr,
     output dcache_lsm_read_done,
@@ -101,43 +97,35 @@ module CPUCore (
     wire brp_dec_branch_prediction;
 
     // between ALU and CDB
-    wire [`Reg_Lock_Width-1 : 0] cdb_alu_index_alu;
-    wire [`Data_Width-1     : 0] cdb_alu_result_alu;
-    wire [`Reg_Lock_Width-1 : 0] cdb_alu_index_lsm;
-    wire [`Data_Width-1     : 0] cdb_alu_result_lsm;
+    wire [`Reg_Lock_Width-1 : 0] cdb_alu_index;
+    wire [`Data_Width-1     : 0] cdb_alu_result;
     wire alu_cdb_valid;
+    wire cdb_alu_grnt;
     wire [`Reg_Lock_Width-1 : 0] alu_cdb_index;
     wire [`Data_Width-1     : 0] alu_cdb_result;
 
     // between LoadStore and CDB
-    wire [`Reg_Lock_Width-1 : 0] cdb_lsm_index_alu;
-    wire [`Data_Width-1     : 0] cdb_lsm_data_alu;
-    wire [`Reg_Lock_Width-1 : 0] cdb_lsm_index_lsm;
-    wire [`Data_Width-1     : 0] cdb_lsm_data_lsm;
+    wire [`Reg_Lock_Width-1 : 0] cdb_lsm_index;
+    wire [`Data_Width-1     : 0] cdb_lsm_data;
     wire lsm_cdb_valid;
+    wire cdb_lsm_grnt;
     wire [`Reg_Lock_Width-1 : 0] lsm_cdb_index;
     wire [`Data_Width-1     : 0] lsm_cdb_data;
     wire [`Addr_Width-1     : 0] lsm_cdb_addr;
 
     // between Branch_ALU and CDB
-    wire [`Reg_Lock_Width-1 : 0] cdb_bra_index_alu;
-    wire [`Data_Width-1     : 0] cdb_bra_result_alu;
-    wire [`Reg_Lock_Width-1 : 0] cdb_bra_index_lsm;
-    wire [`Data_Width-1     : 0] cdb_bra_result_lsm;
-
-    // between Branch_ALU and ROB
-    wire bra_rob_write;
-    wire [`ROB_Entry_Width-1 : 0] bra_rob_entry;
-    wire [1                  : 0] bra_rob_value;
+    wire [`Reg_Lock_Width-1 : 0] cdb_bra_index;
+    wire [`Data_Width-1     : 0] cdb_bra_result;
+    wire bra_cdb_valid;
+    wire cdb_bra_grnt;
+    wire [`Reg_Lock_Width-1 : 0] bra_cdb_index;
+    wire [`Data_Width-1     : 0] bra_cdb_result;
 
     // between CDB and ROB
-    wire cdb_rob_write_alu;
-    wire [`ROB_Entry_Width-1 : 0] cdb_rob_entry_alu;
-    wire [`Data_Width-1      : 0] cdb_rob_value_alu;
-    wire cdb_rob_write_lsm;
-    wire [`ROB_Entry_Width-1 : 0] cdb_rob_entry_lsm;
-    wire [`Data_Width-1      : 0] cdb_rob_value_lsm;
-    wire [`Addr_Width-1      : 0] cdb_rob_addr_lsm;
+    wire [`Reg_Lock_Width-1 : 0] cdb_rob_index;
+    wire [`Data_Width-1      : 0] cdb_rob_data;
+    wire [`Addr_Width-1      : 0] cdb_rob_addr;
+    wire cdb_rob_is_branch;
 
     // between ROB and RegFile
     wire rob_reg_modify;
@@ -263,14 +251,12 @@ module CPUCore (
         .bra_enable (dec_bra_write),
         .bra_bus (dec_bra_bus),
         // with CDB
-        .cdb_in_index_alu (cdb_bra_index_alu),
-        .cdb_in_result_alu (cdb_bra_result_alu),
-        .cdb_in_index_lsm (cdb_bra_index_lsm),
-        .cdb_in_result_lsm (cdb_bra_result_lsm),
-        // with ROB
-        .rob_out_valid (bra_rob_write),
-        .rob_out_index (bra_rob_entry),
-        .rob_out_result (bra_rob_value)
+        .cdb_in_index (cdb_bra_index),
+        .cdb_in_result (cdb_bra_result),
+        .cdb_out_valid (bra_cdb_valid),
+        .grnt (cdb_bra_grnt),
+        .cdb_out_index (bra_cdb_index),
+        .cdb_out_result (bra_cdb_result)
     );
 
     ALU alu0 (
@@ -282,10 +268,9 @@ module CPUCore (
         .alu_enable (dec_alu_write),
         .alu_bus (dec_alu_bus),
         // with CDB
-        .cdb_in_index_alu (cdb_alu_index_alu),
-        .cdb_in_result_alu (cdb_alu_result_alu),
-        .cdb_in_index_lsm (cdb_alu_index_lsm),
-        .cdb_in_result_lsm (cdb_alu_result_lsm),
+        .cdb_in_index (cdb_alu_index),
+        .cdb_in_result (cdb_alu_result),
+        .grnt (cdb_alu_grnt),
         .cdb_out_valid (alu_cdb_valid),
         .cdb_out_index (alu_cdb_index),
         .cdb_out_result (alu_cdb_result)
@@ -298,10 +283,9 @@ module CPUCore (
         .lsm_write (dec_lsm_write),
         .lsm_bus (dec_lsm_bus),
         // with CDB
-        .cdb_in_index_alu (cdb_lsm_index_alu),
-        .cdb_in_data_alu (cdb_lsm_data_alu),
-        .cdb_in_index_lsm (cdb_lsm_index_lsm),
-        .cdb_in_data_lsm (cdb_lsm_data_lsm),
+        .cdb_in_index (cdb_lsm_index),
+        .cdb_in_data (cdb_lsm_data),
+        .grnt (cdb_lsm_grnt),
         .cdb_out_valid (lsm_cdb_valid),
         .cdb_out_index (lsm_cdb_index),
         .cdb_out_data (lsm_cdb_data),
@@ -310,52 +294,45 @@ module CPUCore (
         .buffer_stall (lsm_sta_full),
         .rob_stall (sta_lsm_store_stall),
         // with DataCache
-        /*
-        .dcache_prefetch (lsm_dcache_prefetch),
-        .dcache_pre_addr (lsm_dcache_pre_addr),
-        */
         .dcache_read (lsm_dcache_read),
         .dcache_read_addr (lsm_dcache_read_addr),
         .dcache_read_done (dcache_lsm_read_done),
         .dcache_read_data (dcache_lsm_read_data)
     );
-
-    CDB cdb0 (
+    NewCDB cdb0 (
         .clk (clk),
         .rst (rst),
+
         // with ALU
-        .alu_out_index_alu (cdb_alu_index_alu),
-        .alu_out_result_alu (cdb_alu_result_alu),
-        .alu_out_index_lsm (cdb_alu_index_lsm),
-        .alu_out_result_lsm (cdb_alu_result_lsm),
-        .alu_in_valid (alu_cdb_valid),
+        .alu_req (alu_cdb_valid),
+        .alu_grnt (cdb_alu_grnt),
         .alu_in_index (alu_cdb_index),
-        .alu_in_result (alu_cdb_result),
-        // with Branch_ALU
-        .bra_out_index_alu (cdb_bra_index_alu),
-        .bra_out_result_alu (cdb_bra_result_alu),
-        .bra_out_index_lsm (cdb_bra_index_lsm),
-        .bra_out_result_lsm (cdb_bra_result_lsm),
-        // with LoadStore
-        .lsm_out_index_alu (cdb_lsm_index_alu),
-        .lsm_out_data_alu (cdb_lsm_data_alu),
-        .lsm_out_index_lsm (cdb_lsm_index_lsm),
-        .lsm_out_data_lsm (cdb_lsm_data_lsm),
-        .lsm_in_valid (lsm_cdb_valid),
+        .alu_in_data (alu_cdb_result),
+        .alu_out_index (cdb_alu_index),
+        .alu_out_data (cdb_alu_result),
+        // with LSM
+        .lsm_req (lsm_cdb_valid),
+        .lsm_grnt (cdb_lsm_grnt),
         .lsm_in_index (lsm_cdb_index),
-        .lsm_in_result (lsm_cdb_data),
+        .lsm_in_data (lsm_cdb_data),
         .lsm_in_addr (lsm_cdb_addr),
-        // with ROB
-        .rob_write_alu (cdb_rob_write_alu),
-        .rob_out_entry_alu (cdb_rob_entry_alu),
-        .rob_out_value_alu (cdb_rob_value_alu),
-        .rob_write_lsm (cdb_rob_write_lsm),
-        .rob_out_entry_lsm (cdb_rob_entry_lsm),
-        .rob_out_value_lsm (cdb_rob_value_lsm),
-        .rob_out_addr_lsm (cdb_rob_addr_lsm),
+        .lsm_out_index (cdb_lsm_index),
+        .lsm_out_data (cdb_lsm_data),
+        // with BRA
+        .bra_req (bra_cdb_valid),
+        .bra_grnt (cdb_bra_grnt),
+        .bra_in_index (bra_cdb_index),
+        .bra_in_data (bra_cdb_result),
+        .bra_out_index (cdb_bra_index),
+        .bra_out_data (cdb_bra_result),
         // with PC
         .pc_out_index (cdb_pc_index),
-        .pc_out_result (cdb_pc_result)
+        .pc_out_data (cdb_pc_result),
+        // with ROB
+        .rob_is_branch (cdb_rob_is_branch),
+        .rob_out_index (cdb_rob_index),
+        .rob_out_data (cdb_rob_data),
+        .rob_out_addr (cdb_rob_addr)
     );
 
     ROB rob0 (
@@ -388,17 +365,10 @@ module CPUCore (
         .dcache_data (rob_dcache_data),
         .dcache_write_valid (dcache_rob_valid),
         // with CDB
-        .cdb_write_alu (cdb_rob_write_alu),
-        .cdb_in_entry_alu (cdb_rob_entry_alu),
-        .cdb_in_value_alu (cdb_rob_value_alu),
-        .cdb_write_lsm (cdb_rob_write_lsm),
-        .cdb_in_entry_lsm (cdb_rob_entry_lsm),
-        .cdb_in_value_lsm (cdb_rob_value_lsm),
-        .cdb_in_addr_lsm (cdb_rob_addr_lsm),
-        // with Branch_ALU
-        .bra_write (bra_rob_write),
-        .bra_in_entry (bra_rob_entry),
-        .bra_in_value (bra_rob_value),
+        .cdb_in_entry (cdb_rob_index),
+        .cdb_in_value (cdb_rob_data),
+        .cdb_in_addr (cdb_rob_addr),
+        .cdb_is_branch (cdb_rob_is_branch),
         // with PC
         .pc_modify (rob_pc_modify),
         .npc (rob_pc_npc),

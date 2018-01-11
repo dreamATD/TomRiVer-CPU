@@ -28,10 +28,10 @@ module ALU (
     input alu_enable,
     input [`Alu_Bus_Width-1   : 0] alu_bus,
     // with CDB
-    input  [`Reg_Lock_Width-1 : 0] cdb_in_index_alu,
-    input  [`Data_Width-1     : 0] cdb_in_result_alu,
-    input  [`Reg_Lock_Width-1 : 0] cdb_in_index_lsm,
-    input  [`Data_Width-1     : 0] cdb_in_result_lsm,
+    input [`Reg_Lock_Width-1 : 0] cdb_in_index,
+    input [`Data_Width-1     : 0] cdb_in_result,
+    input grnt,
+
     output reg cdb_out_valid,
     output reg [`Reg_Lock_Width-1  : 0] cdb_out_index,
     output reg [`Data_Width-1      : 0] cdb_out_result
@@ -44,26 +44,13 @@ module ALU (
     integer i;
     always @ (*) begin
         for (i = 0; i < Alu_Queue_Entry; i = i + 1) begin
-            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Alu_Lock1_Interval] == cdb_in_index_alu) begin
+            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Alu_Lock1_Interval] == cdb_in_index) begin
                 queue[i][`Alu_Lock1_Interval] <= `Reg_No_Lock;
-                queue[i][`Alu_Data1_Interval] <= cdb_in_result_alu;
+                queue[i][`Alu_Data1_Interval] <= cdb_in_result;
             end
-            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Alu_Lock2_Interval] == cdb_in_index_alu) begin
+            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Alu_Lock2_Interval] == cdb_in_index) begin
                 queue[i][`Alu_Lock2_Interval] <= `Reg_No_Lock;
-                queue[i][`Alu_Data2_Interval] <= cdb_in_result_alu;
-            end
-        end
-    end
-
-    always @ (*) begin
-        for (i = 0; i < Alu_Queue_Entry; i = i + 1) begin
-            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Alu_Lock1_Interval] == cdb_in_index_lsm) begin
-                queue[i][`Alu_Lock1_Interval] <= `Reg_No_Lock;
-                queue[i][`Alu_Data1_Interval] <= cdb_in_result_lsm;
-            end
-            if (queue[i][`Alu_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Alu_Lock2_Interval] == cdb_in_index_lsm) begin
-                queue[i][`Alu_Lock2_Interval] <= `Reg_No_Lock;
-                queue[i][`Alu_Data2_Interval] <= cdb_in_result_lsm;
+                queue[i][`Alu_Data2_Interval] <= cdb_in_result;
             end
         end
     end
@@ -102,7 +89,7 @@ module ALU (
             end
             cdb_out_valid <= 0;
         end else begin
-            if (queue[find_min[0]][`Alu_Op_Interval] != `NOP &&
+            if (grnt && queue[find_min[0]][`Alu_Op_Interval] != `NOP &&
                 queue[find_min[0]][`Alu_Lock1_Interval] == `Reg_No_Lock &&
                 queue[find_min[0]][`Alu_Lock2_Interval] == `Reg_No_Lock
             ) queue[find_min[0]] <= {`Alu_Bus_Width{1'b0}};
@@ -113,6 +100,7 @@ module ALU (
     end
 
     always @ (*) begin
+        cdb_out_valid <= 0;
         if (queue[find_min[0]][`Alu_Op_Interval] != `NOP &&
             queue[find_min[0]][`Alu_Lock1_Interval] == `Reg_No_Lock &&
             queue[find_min[0]][`Alu_Lock2_Interval] == `Reg_No_Lock
@@ -133,15 +121,12 @@ module ALU (
                 `AND  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) & $signed(queue[find_min[0]][`Alu_Data2_Interval]);
                 `SLL  : cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) <<       (queue[find_min[0]][`Alu_Data2_Low5]);
                 `SRL  : cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) >>       (queue[find_min[0]][`Alu_Data2_Low5]);
-                `SRA  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) >>       (queue[find_min[0]][`Alu_Data2_Low5]);
-                `AUIPC: cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) +        (queue[find_min[0]][`Alu_Data2_Interval]);
+                `SRA  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) >>>      (queue[find_min[0]][`Alu_Data2_Low5]);
+                `AUIPC: cdb_out_result <=        (queue[find_min[0]][`Alu_Data1_Interval]) + $signed(queue[find_min[0]][`Alu_Data2_Interval]);
                 `JAL  : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) + $signed(queue[find_min[0]][`Alu_Data2_Interval]);
                 `JALR : cdb_out_result <= $signed(queue[find_min[0]][`Alu_Data1_Interval]) + $signed(queue[find_min[0]][`Alu_Data2_Interval]) & 32'hfffffffe;
                 default: ;
             endcase
-        end else begin
-            //$display ("valid to 0!");
-            cdb_out_valid <= 0;
         end
     end
 

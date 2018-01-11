@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 `include "defines.v"
-module ROB(
+module ROB (
     input clk,
     input rst,
     // with Staller
@@ -50,17 +50,10 @@ module ROB(
     output reg [`Data_Width-1 : 0] dcache_data,
     input dcache_write_valid,
     // with CDB
-    input cdb_write_alu,
-    input [`ROB_Entry_Width-1 : 0] cdb_in_entry_alu,
-    input [`Data_Width-1      : 0] cdb_in_value_alu,
-    input cdb_write_lsm,
-    input [`ROB_Entry_Width-1 : 0] cdb_in_entry_lsm,
-    input [`Data_Width-1      : 0] cdb_in_value_lsm,
-    input [`Addr_Width-1      : 0] cdb_in_addr_lsm,
-    // with Branch_ALU
-    input bra_write,
-    input [`ROB_Entry_Width-1 : 0] bra_in_entry,
-    input [1                  : 0] bra_in_value,
+    input [`Reg_Lock_Width-1 : 0] cdb_in_entry,
+    input [`Data_Width-1      : 0] cdb_in_value,
+    input [`Addr_Width-1      : 0] cdb_in_addr,
+    input cdb_is_branch,
     // with PC
     output reg pc_modify,
     output reg [`Inst_Addr_Width-1   : 0] npc,
@@ -86,8 +79,10 @@ module ROB(
     wire read_enable, fifo_full;
     reg write_enable;
     wire [`ROB_Bus_Width-1   : 0] read_out;
+    wire cdb_write;
 
     assign read_out = ram[read_ptr];
+    assign cdb_write = (cdb_in_entry != `Reg_No_Lock);
 
     assign fifo_stall = (counter >= ENTRY_NUMBER - 1);
     assign fifo_full = (counter == ENTRY_NUMBER);
@@ -178,7 +173,6 @@ module ROB(
     endtask
 
     always @ (*) begin
-        $display ("mark: rob");
         reg_modify   <= 0;
         pc_modify    <= 0;
         brp_update   <= 0;
@@ -194,7 +188,6 @@ module ROB(
                 end
                 Branch: begin
                     if (read_out[`ROB_Branch_Interval] == 2'b10 || read_out[`ROB_Branch_Interval] == 2'b01) begin
-                    $display ("readout: %h, %b", read_out, read_out[`ROB_Branch_Interval]);
                         write_enable <= 0;
                         write_ptr    <= read_ptr + 1;
                         counter      <= 1;
@@ -217,21 +210,17 @@ module ROB(
     end
 
     always @ (negedge clk) begin
-        if (cdb_write_alu && !ram[cdb_in_entry_alu][`ROB_Valid_Interval]) begin
-            ram[cdb_in_entry_alu][`ROB_Value_Interval] <= cdb_in_value_alu;
-            ram[cdb_in_entry_alu][`ROB_Valid_Interval] <= 1;
-            $display ("wrong");
-        end
-        if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval]) begin
-            ram[cdb_in_entry_lsm][`ROB_Value_Interval] <= cdb_in_value_lsm;
-            ram[cdb_in_entry_lsm][`ROB_Valid_Interval] <= 1;
-        end
-        if (cdb_write_lsm && !ram[cdb_in_entry_lsm][`ROB_Valid_Interval] && ram[cdb_in_entry_lsm][`ROB_Op_Interval] >= S_byte) begin
-            ram[cdb_in_entry_lsm][`ROB_Mem_Interval] <= cdb_in_addr_lsm;
-        end
-        if (bra_write && !ram[bra_in_entry][`ROB_Valid_Interval]) begin
-            ram[bra_in_entry][`ROB_Branch_Interval] <= bra_in_value;
-            ram[bra_in_entry][`ROB_Valid_Interval]  <= 1;
+        if (cdb_write && !ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval]) begin
+            ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval]  <= 1;
+            if (cdb_is_branch) begin
+                ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Branch_Interval] <= cdb_in_value[1:0];
+            end else begin
+                ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Value_Interval] <= cdb_in_value;
+                ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval] <= 1;
+                if (ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Op_Interval] >= S_byte) begin
+                    ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Mem_Interval] <= cdb_in_addr;
+                end
+            end
         end
     end
 endmodule

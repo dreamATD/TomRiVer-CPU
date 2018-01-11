@@ -28,14 +28,13 @@ module Branch_ALU (
     input bra_enable,
     input [`Bra_Bus_Width-1    : 0] bra_bus,
     // with CDB
-    input  [`Reg_Lock_Width-1  : 0] cdb_in_index_alu,
-    input  [`Data_Width-1      : 0] cdb_in_result_alu,
-    input  [`Reg_Lock_Width-1  : 0] cdb_in_index_lsm,
-    input  [`Data_Width-1      : 0] cdb_in_result_lsm,
-    // with ROB
-    output reg rob_out_valid,
-    output reg [`ROB_Entry_Width-1 : 0] rob_out_index,
-    output reg [1:0] rob_out_result
+    input  [`Reg_Lock_Width-1  : 0] cdb_in_index,
+    input  [`Data_Width-1      : 0] cdb_in_result,
+
+    output reg cdb_out_valid,
+    input grnt,
+    output reg [`ROB_Entry_Width-1 : 0] cdb_out_index,
+    output reg [`Data_Width-1:0] cdb_out_result
 );
 
     localparam  Bra_Queue_Entry         = 4;
@@ -45,26 +44,13 @@ module Branch_ALU (
     integer i;
     always @ (*) begin
         for (i = 0; i < Bra_Queue_Entry; i = i + 1) begin
-            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Bra_Lock1_Interval] == cdb_in_index_alu) begin
+            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Bra_Lock1_Interval] == cdb_in_index) begin
                 queue[i][`Bra_Lock1_Interval] <= `Reg_No_Lock;
-                queue[i][`Bra_Data1_Interval] <= cdb_in_result_alu;
+                queue[i][`Bra_Data1_Interval] <= cdb_in_result;
             end
-            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue[i][`Bra_Lock2_Interval] == cdb_in_index_alu) begin
+            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && queue[i][`Bra_Lock2_Interval] == cdb_in_index) begin
                 queue[i][`Bra_Lock2_Interval] <= `Reg_No_Lock;
-                queue[i][`Bra_Data2_Interval] <= cdb_in_result_alu;
-            end
-        end
-    end
-
-    always @ (*) begin
-        for (i = 0; i < Bra_Queue_Entry; i = i + 1) begin
-            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Bra_Lock1_Interval] == cdb_in_index_lsm) begin
-                queue[i][`Bra_Lock1_Interval] <= `Reg_No_Lock;
-                queue[i][`Bra_Data1_Interval] <= cdb_in_result_lsm;
-            end
-            if (queue[i][`Bra_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue[i][`Bra_Lock2_Interval] == cdb_in_index_lsm) begin
-                queue[i][`Bra_Lock2_Interval] <= `Reg_No_Lock;
-                queue[i][`Bra_Data2_Interval] <= cdb_in_result_lsm;
+                queue[i][`Bra_Data2_Interval] <= cdb_in_result;
             end
         end
     end
@@ -101,9 +87,9 @@ module Branch_ALU (
             for (k = 0; k < Bra_Queue_Entry; k = k + 1) begin
                 queue[k] <= {`Bra_Bus_Width{1'b0}};
             end
-            rob_out_valid <= 0;
+            cdb_out_valid <= 0;
         end else begin
-            if (queue[find_min[0]][`Bra_Op_Interval] != `NOP &&
+            if (grnt && queue[find_min[0]][`Bra_Op_Interval] != `NOP &&
                 queue[find_min[0]][`Bra_Lock1_Interval] == `Reg_No_Lock &&
                 queue[find_min[0]][`Bra_Lock2_Interval] == `Reg_No_Lock
             ) queue[find_min[0]] <= {`Bra_Bus_Width{1'b0}};
@@ -114,27 +100,26 @@ module Branch_ALU (
     end
 
     always @ (*) begin
+        cdb_out_valid <= 0;
         if (queue[find_min[0]][`Bra_Op_Interval] != `NOP &&
             queue[find_min[0]][`Bra_Lock1_Interval] == `Reg_No_Lock &&
             queue[find_min[0]][`Bra_Lock2_Interval] == `Reg_No_Lock
         ) begin
             if (queue[find_min[0]][`Bra_Op_Interval] == `NOP ) begin
-                rob_out_valid <= 0;
+                cdb_out_valid <= 0;
             end else begin
-                rob_out_valid <= 1;
-                rob_out_index <= queue[find_min[0]][`Bra_Rdlock_Interval];
+                cdb_out_valid <= 1;
+                cdb_out_index <= queue[find_min[0]][`Bra_Rdlock_Interval];
             end
             case (queue[find_min[0]][`Bra_Op_Interval])
-                `BEQ  : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] == queue[find_min[0]][`Bra_Data2_Interval])};
-                `BNE  : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] != queue[find_min[0]][`Bra_Data2_Interval])};
-                `BLT  : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], ($signed(queue[find_min[0]][`Bra_Data1_Interval]) < $signed(queue[find_min[0]][`Bra_Data2_Interval]))};
-                `BLTU : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] < queue[find_min[0]][`Bra_Data2_Interval])};
-                `BGE  : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], ($signed(queue[find_min[0]][`Bra_Data1_Interval]) >= $signed(queue[find_min[0]][`Bra_Data2_Interval]))};
-                `BGEU : rob_out_result <= {queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] >= queue[find_min[0]][`Bra_Data2_Interval])};
+                `BEQ  : cdb_out_result <= {{`Data_Width-2{1'b0}}, queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] == queue[find_min[0]][`Bra_Data2_Interval])};
+                `BNE  : cdb_out_result <= {{`Data_Width-2{1'b0}}, queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] != queue[find_min[0]][`Bra_Data2_Interval])};
+                `BLT  : cdb_out_result <= {{`Data_Width-2{1'b0}}, queue[find_min[0]][`Bra_Pre_Interval], ($signed(queue[find_min[0]][`Bra_Data1_Interval]) < $signed(queue[find_min[0]][`Bra_Data2_Interval]))};
+                `BLTU : cdb_out_result <= {{`Data_Width-2{1'b0}}, queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] < queue[find_min[0]][`Bra_Data2_Interval])};
+                `BGE  : cdb_out_result <= {{`Data_Width-2{1'b0}}, queue[find_min[0]][`Bra_Pre_Interval], ($signed(queue[find_min[0]][`Bra_Data1_Interval]) >= $signed(queue[find_min[0]][`Bra_Data2_Interval]))};
+                `BGEU : cdb_out_result <= {{`Data_Width-2{1'b0}}, queue[find_min[0]][`Bra_Pre_Interval], (queue[find_min[0]][`Bra_Data1_Interval] >= queue[find_min[0]][`Bra_Data2_Interval])};
                 default: ;
             endcase
-        end else begin
-            rob_out_valid <= 0;
         end
     end
 

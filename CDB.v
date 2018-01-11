@@ -3,9 +3,9 @@
 // Company:
 // Engineer:
 //
-// Create Date: 2017/12/17 16:25:26
+// Create Date: 2018/01/11 15:35:07
 // Design Name:
-// Module Name: CDB
+// Module Name: NewCDB
 // Project Name:
 // Target Devices:
 // Tool Versions:
@@ -20,93 +20,103 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 `include "defines.v"
+
 module CDB(
     input clk,
     input rst,
+
     // with ALU
-    output [`Reg_Lock_Width-1 : 0] alu_out_index_alu,
-    output [`Data_Width-1     : 0] alu_out_result_alu,
-    output [`Reg_Lock_Width-1 : 0] alu_out_index_lsm,
-    output [`Data_Width-1     : 0] alu_out_result_lsm,
-    input alu_in_valid,
+    input alu_req,
+    output reg alu_grnt,
     input [`Reg_Lock_Width-1 : 0] alu_in_index,
-    input [`Data_Width-1     : 0] alu_in_result,
-    // with Branch_ALU
-    output [`Reg_Lock_Width-1 : 0] bra_out_index_alu,
-    output [`Data_Width-1     : 0] bra_out_result_alu,
-    output [`Reg_Lock_Width-1 : 0] bra_out_index_lsm,
-    output [`Data_Width-1     : 0] bra_out_result_lsm,
-    // with LoadStore
-    output [`Reg_Lock_Width-1 : 0] lsm_out_index_alu,
-    output [`Data_Width-1     : 0] lsm_out_data_alu,
-    output [`Reg_Lock_Width-1 : 0] lsm_out_index_lsm,
-    output [`Data_Width-1     : 0] lsm_out_data_lsm,
-    input lsm_in_valid,
+    input [`Data_Width-1     : 0] alu_in_data,
+    output [`Reg_Lock_Width-1 : 0] alu_out_index,
+    output [`Data_Width-1      : 0] alu_out_data,
+    // with LSM
+    input lsm_req,
+    output reg lsm_grnt,
     input [`Reg_Lock_Width-1 : 0] lsm_in_index,
-    input [`Data_Width-1      : 0] lsm_in_result,
+    input [`Data_Width-1      : 0] lsm_in_data,
     input [`Addr_Width-1      : 0] lsm_in_addr,
-    // with ROB
-    output rob_write_alu,
-    output [`ROB_Entry_Width-1 : 0] rob_out_entry_alu,
-    output [`Data_Width-1      : 0] rob_out_value_alu,
-    output rob_write_lsm,
-    output [`ROB_Entry_Width-1 : 0] rob_out_entry_lsm,
-    output [`Data_Width-1      : 0] rob_out_value_lsm,
-    output [`Addr_Width-1      : 0] rob_out_addr_lsm,
+    output [`Reg_Lock_Width-1 : 0] lsm_out_index,
+    output [`Data_Width-1      : 0] lsm_out_data,
+    // with BRA
+    input bra_req,
+    output reg bra_grnt,
+    input [`Reg_Lock_Width-1 : 0] bra_in_index,
+    input [`Data_Width-1      : 0] bra_in_data,
+    output [`Reg_Lock_Width-1 : 0] bra_out_index,
+    output [`Data_Width-1      : 0] bra_out_data,
     // with PC
     output [`Reg_Lock_Width-1 : 0] pc_out_index,
-    output [`Data_Width-1     : 0] pc_out_result
+    output [`Data_Width-1      : 0] pc_out_data,
+    // with ROB
+    output rob_is_branch,
+    output [`Reg_Lock_Width-1 : 0] rob_out_index,
+    output [`Data_Width-1      : 0] rob_out_data,
+    output [`Addr_Width-1      : 0] rob_out_addr
 );
-    assign alu_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
-    assign alu_out_result_alu = alu_in_valid ? alu_in_result : 0;
-    assign alu_out_index_lsm = lsm_in_valid ? lsm_in_index : `Reg_No_Lock;
-    assign alu_out_result_lsm = lsm_in_valid ? lsm_in_result : 0;
+    localparam  ALU = 2'h1;
+    localparam  LSM = 2'h2;
+    localparam  BRA = 2'h3;
 
-    assign bra_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
-    assign bra_out_result_alu = alu_in_valid ? alu_in_result : 0;
-    assign bra_out_index_lsm = lsm_in_valid ? lsm_in_index : `Reg_No_Lock;
-    assign bra_out_result_lsm = lsm_in_valid ? lsm_in_result : 0;
+    reg is_branch;
+    reg [`Reg_Lock_Width-1 : 0] out_index;
+    reg [`Data_Width-1      : 0] out_data;
+    reg [`Addr_Width-1      : 0] out_addr;
 
-    assign lsm_out_index_alu = alu_in_valid ? alu_in_index : `Reg_No_Lock;
-    assign lsm_out_data_alu = alu_in_valid ? alu_in_result : 0;
-    assign lsm_out_index_lsm = lsm_in_valid ? lsm_in_index : `Reg_No_Lock;
-    assign lsm_out_data_lsm = lsm_in_valid ? lsm_in_result : 0;
+    assign alu_out_index = out_index;
+    assign alu_out_data = out_data;
+    assign lsm_out_index = out_index;
+    assign lsm_out_data = out_data;
+    assign pc_out_index = out_index;
+    assign pc_out_data = out_data;
+    assign bra_out_index = out_index;
+    assign bra_out_data = out_data;
+    assign rob_is_branch = is_branch;
+    assign rob_out_index = out_index;
+    assign rob_out_data = out_data;
+    assign rob_out_addr = out_addr;
 
-    assign rob_write_alu = alu_in_valid;
-    assign rob_out_entry_alu = alu_in_index;
-    assign rob_out_value_alu = alu_in_result;
-    assign rob_write_lsm = lsm_in_valid;
-    assign rob_out_entry_lsm = lsm_in_index;
-    assign rob_out_value_lsm = lsm_in_result;
-    assign rob_out_addr_lsm = lsm_in_addr;
+    reg [1:0] owner;
 
-    assign pc_out_index = alu_in_valid ? alu_in_index : `Reg_No_Lock;
-    assign pc_out_result = alu_in_valid ? alu_in_result : 0;
-/*
-    always @ (posedge clk) begin
-        if (rst) begin
-            alu_out_index  <= `Reg_No_Lock;
-            alu_out_result <= 0;
-            alu_done       <= 0;
-            rob_write      <= 0;
-        end else begin
-            if (alu_in_valid) begin
-                alu_out_index  <= alu_in_index;
-                alu_out_result <= alu_in_result;
-                alu_done       <= 1;
-                if (alu_in_index != `Reg_No_Lock) begin
-                    rob_write     <= 1;
-                    rob_out_entry <= alu_in_index[`ROB_Entry_Width-1:0];
-                    rob_out_value <= alu_in_result;
-                end else begin
-                    rob_write <= 0;
-                end
-            end else begin
-                alu_out_index  <= `Reg_No_Lock;
-                alu_out_result <= 0;
-                alu_done       <= 0;
+    always @ (*) begin
+        alu_grnt <= 0;
+        lsm_grnt <= 0;
+        bra_grnt <= 0;
+        out_index <= `Reg_No_Lock;
+        is_branch <= 0;
+        case (owner)
+            ALU : begin
+                alu_grnt <= 1;
+                out_data <= alu_in_data;
+                out_index <= alu_in_index;
             end
+            LSM : begin
+                lsm_grnt <= 1;
+                out_data <= lsm_in_data;
+                out_index <= lsm_in_index;
+                out_addr <= lsm_in_addr;
+            end
+            BRA : begin
+                bra_grnt <= 1;
+                is_branch <= 1;
+                out_data <= bra_in_data;
+                out_index <= bra_in_index;
+            end
+        endcase
+    end
+
+    always @ (*) begin
+        owner <= 0;
+        if (!alu_req && !lsm_req && bra_req) begin
+            owner <= BRA;
+        end
+        if (!alu_req && lsm_req) begin
+            owner <= LSM;
+        end
+        if (alu_req) begin
+            owner <= ALU;
         end
     end
-*/
 endmodule
