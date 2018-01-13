@@ -32,12 +32,12 @@ module ROB (
     input [`ROB_Bus_Width-1   : 0] fifo_in,
     input check1,
     input [`ROB_Entry_Width-1 : 0] check_entry1,
-    output [`Data_Width-1     : 0] check_value1,
-    output check_value_enable1,
+    output reg [`Data_Width-1     : 0] check_value1,
+    output reg check_value_enable1,
     input check2,
     input [`ROB_Entry_Width-1 : 0] check_entry2,
-    output [`Data_Width-1     : 0] check_value2,
-    output check_value_enable2,
+    output reg [`Data_Width-1     : 0] check_value2,
+    output reg check_value_enable2,
     // with RegFile
     output reg reg_modify,
     output reg [`Reg_Width-1  : 0] reg_name,
@@ -94,10 +94,28 @@ module ROB (
 
     assign store_stall = !(counter && read_out[`ROB_Op_Interval] >= S_byte && dcache_write_valid);
 
-    assign check_value1 = check1 ? ram[check_entry1][`Data_Width:1] : 0;
-    assign check_value_enable1 = check1 ? ram[check_entry1][0] : 0;
-    assign check_value2 = check2 ? ram[check_entry2][`Data_Width:1] : 0;
-    assign check_value_enable2 = check2 ? ram[check_entry2][0] : 0;
+    always @ (*) begin
+        check_value_enable1 <= 0;
+        check_value_enable2 <= 0;
+        if (check1) begin
+            if (cdb_in_entry[`ROB_Entry_Width-1:0] == check_entry1) begin
+                check_value1 <= cdb_in_value;
+                check_value_enable1 <= 1;
+            end else begin
+                check_value_enable1 <= ram[check_entry1][0];
+                check_value1 = ram[check_entry1][`Data_Width:1];
+            end
+        end
+        if (check2) begin
+            if (cdb_in_entry[`ROB_Entry_Width-1:0] == check_entry2) begin
+                check_value2 <= cdb_in_value;
+                check_value_enable2 <= 1;
+            end else begin
+                check_value_enable2 <= ram[check_entry2][0];
+                check_value2 = ram[check_entry2][`Data_Width:1];
+            end
+        end
+    end
 
     always @ (posedge clk) begin
         if(rst) begin
@@ -107,6 +125,18 @@ module ROB (
             reg_modify <= 0;
         end
         else begin
+            if (cdb_write && !ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval]) begin
+                ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval]  <= 1;
+                if (cdb_is_branch) begin
+                    ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Branch_Interval] <= cdb_in_value[1:0];
+                end else begin
+                    ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Value_Interval] <= cdb_in_value;
+                    ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval] <= 1;
+                    if (ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Op_Interval] >= S_byte) begin
+                        ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Mem_Interval] <= cdb_in_addr;
+                    end
+                end
+            end
             case ({read_enable, write_enable})
                 2'b00: counter <= counter;
                 2'b01: begin
@@ -178,7 +208,7 @@ module ROB (
         brp_update   <= 0;
         write_enable <= write && !fifo_full;
         dcache_write <= 0;
-        if (counter &&  ram[read_ptr][0] && read_out[`ROB_Valid_Interval]) begin
+        if (counter && read_out[`ROB_Valid_Interval]) begin
             case (read_out[`ROB_Op_Interval])
                 Normal_Op: begin
                     reg_modify <= 1;
@@ -209,18 +239,4 @@ module ROB (
         end
     end
 
-    always @ (negedge clk) begin
-        if (cdb_write && !ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval]) begin
-            ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval]  <= 1;
-            if (cdb_is_branch) begin
-                ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Branch_Interval] <= cdb_in_value[1:0];
-            end else begin
-                ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Value_Interval] <= cdb_in_value;
-                ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Valid_Interval] <= 1;
-                if (ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Op_Interval] >= S_byte) begin
-                    ram[cdb_in_entry[`ROB_Entry_Width-1:0]][`ROB_Mem_Interval] <= cdb_in_addr;
-                end
-            end
-        end
-    end
 endmodule
