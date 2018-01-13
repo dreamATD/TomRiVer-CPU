@@ -23,7 +23,9 @@
 
 module Framework (
     input clk,
-    input rst
+    input rst,
+    output Tx,
+    input Rx
 );
     // between pc and icache
     wire pc_icache_ce;
@@ -39,10 +41,6 @@ module Framework (
     wire [`Inst_Width-1:0] icache_dec_inst;
 
     // between dcache and loadStore
-    /*
-    wire lsm_dcache_prefetch;
-    wire [`Addr_Width-1 : 0]  lsm_dcache_pre_addr;
-    */
     wire lsm_dcache_read;
     wire [`Addr_Width-1 : 0] lsm_dcache_read_addr;
     wire dcache_lsm_read_done;
@@ -70,6 +68,15 @@ module Framework (
     wire [3:0] dcache_mem_i_mask;
     wire [`Data_Width-1:0] mem_dcache_o_data;
 
+    // between TransInfo and Uart
+    wire trans_uart_send_flag;
+    wire [7:0] trans_uart_send_data;
+    wire trans_uart_recv_flag;
+    wire [7:0] uart_trans_recv_data;
+
+    wire uart_trans_sendable;
+    wire uart_trans_receivable;
+
     CPUCore cpu_core0(
         .clk (clk),
         .rst (rst),
@@ -82,10 +89,6 @@ module Framework (
         .sta_icache_stall (sta_icache_stall),
         .icache_addr (icache_addr),
         // between dcache and LoadStore
-        /*
-        .lsm_dcache_prefetch (lsm_dcache_prefetch),
-        .lsm_dcache_pre_addr (lsm_dcache_pre_addr),
-        */
         .lsm_dcache_read (lsm_dcache_read),
         .lsm_dcache_read_addr (lsm_dcache_read_addr),
         .dcache_lsm_read_done (dcache_lsm_read_done),
@@ -122,10 +125,6 @@ module Framework (
         .clk (clk),
         .rst (rst),
         // with LoadStore
-        /*
-        .prefetch (lsm_dcache_prefetch),
-        .pre_addr (lsm_dcache_pre_addr),
-        */
         .read (lsm_dcache_read),
         .read_addr(lsm_dcache_read_addr),
         .read_done (dcache_lsm_read_done),
@@ -146,6 +145,46 @@ module Framework (
         .mem_o_mask (dcache_mem_i_mask)
     );
 
+    TransInfo trans0(
+        .clk (clk),
+        .rst (rst),
+        // with InstCache
+        .icache_read (icache_mem_valid),
+        .icache_addr (icache_mem_addr),
+        .icache_valid (mem_icache_valid),
+        .icache_inst (mem_icache_data),
+        // with DataCache
+        .dcache_rw_flag (dcache_mem_rw_flag),
+        .dcache_addr (dcache_mem_addr),
+        .dcache_read_valid (mem_dcache_read_valid),
+        .dcache_read_data (mem_dcache_o_data),
+        .dcache_write_data (dcache_mem_i_data),
+        .dcache_write_mask (dcache_mem_i_mask),
+        .dcache_write_valid (mem_dcache_free),
+        // with Uart
+        .send_flag (trans_uart_send_flag),
+    	.send_data (trans_uart_send_data),
+    	.recv_flag (trans_uart_recv_flag),
+    	.recv_data (uart_trans_recv_data),
+    	.sendable (uart_trans_sendable),
+    	.receivable (uart_trans_receivable)
+    );
+
+    UartComm uart0 (
+        .CLK (clk),
+        .RST (rst),
+
+        .send_flag (trans_uart_send_flag),
+    	.send_data (trans_uart_send_data),
+    	.recv_flag (trans_uart_recv_flag),
+    	.recv_data (uart_trans_recv_data),
+    	.sendable (uart_trans_sendable),
+    	.receivable (uart_trans_receivable),
+
+        .Tx (Tx),
+        .Rx (Rx)
+    );
+/*
     InstMemory imem0 (
         .read (icache_mem_valid),
         .addr (icache_mem_addr),
@@ -165,4 +204,5 @@ module Framework (
         .o_data (mem_dcache_o_data),
         .i_mask (dcache_mem_i_mask)
     );
+*/
 endmodule

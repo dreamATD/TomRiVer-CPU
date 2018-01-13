@@ -32,16 +32,16 @@ module CPUCore (
     output sta_icache_stall,
     output [`Inst_Addr_Width-1 : 0] icache_addr,
     // between dcache and LoadStore
-    input lsm_dcache_read,
-    input [`Addr_Width-1 : 0] lsm_dcache_read_addr,
-    output dcache_lsm_read_done,
-    output [`Data_Width-1     : 0] dcache_lsm_read_data,
+    output lsm_dcache_read,
+    output [`Addr_Width-1 : 0] lsm_dcache_read_addr,
+    input dcache_lsm_read_done,
+    input [`Data_Width-1     : 0] dcache_lsm_read_data,
     // between dcache and rob
-    input rob_dcache_write,
-    input [3             : 0] rob_dcache_mask,
-    input [`Addr_Width-1 : 0] rob_dcache_addr,
-    input [`Data_Width-1 : 0] rob_dcache_data,
-    output dcache_rob_valid
+    output rob_dcache_write,
+    output [3             : 0] rob_dcache_mask,
+    output [`Addr_Width-1 : 0] rob_dcache_addr,
+    output [`Data_Width-1 : 0] rob_dcache_data,
+    input dcache_rob_valid
 );
     wire alu_sta_full;
     wire bra_sta_full;
@@ -299,10 +299,7 @@ module CPUCore (
         .dcache_read_done (dcache_lsm_read_done),
         .dcache_read_data (dcache_lsm_read_data)
     );
-    NewCDB cdb0 (
-        .clk (clk),
-        .rst (rst),
-
+    CDB cdb0 (
         // with ALU
         .alu_req (alu_cdb_valid),
         .alu_grnt (cdb_alu_grnt),

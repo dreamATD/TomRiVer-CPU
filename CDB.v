@@ -22,9 +22,6 @@
 `include "defines.v"
 
 module CDB(
-    input clk,
-    input rst,
-
     // with ALU
     input alu_req,
     output reg alu_grnt,
@@ -103,6 +100,13 @@ module CDB(
                 is_branch <= 1;
                 out_data <= bra_in_data;
                 out_index <= bra_in_index;
+            end
+            default : begin
+                alu_grnt <= 0;
+                lsm_grnt <= 0;
+                bra_grnt <= 0;
+                out_index <= `Reg_No_Lock;
+                is_branch <= 0;
             end
         endcase
     end

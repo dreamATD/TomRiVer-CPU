@@ -172,10 +172,6 @@ module DataCache #(
     input clk,
     input rst,
     // with LoadStore
-    /*
-    input prefetch,
-    input [`Addr_Width-1 : 0]  pre_addr,
-    */
     input read,
     input [`Addr_Width-1 : 0] read_addr,
     output reg read_done,
@@ -207,10 +203,10 @@ module DataCache #(
     reg valid_array[(1<<INDEX_WIDTH)-1:0][ASSOCIATIVITY-1:0];
     reg ctrl_array[(1<<INDEX_WIDTH)-1:0][ASSOCIATIVITY-1:0];
 
-    reg [TAG_WIDTH-1:0] i_tag, r_i_tag,/* pre_o_tag,*/ mem_o_tag;
-    reg [INDEX_WIDTH-1:0] i_index, r_i_index, /*pre_o_index,*/ mem_o_index;
-    reg [BLOCK_OFFSET_WIDTH-1:0] i_blockoffset, r_i_blockoffset, /*pre_o_blockoffset,*/ gen_blockoffset, mem_o_blockoffset;
-    reg location, r_location, /*pre_location,*/ mem_location;
+    reg [TAG_WIDTH-1:0] i_tag, r_i_tag, mem_o_tag;
+    reg [INDEX_WIDTH-1:0] i_index, r_i_index, mem_o_index;
+    reg [BLOCK_OFFSET_WIDTH-1:0] i_blockoffset, r_i_blockoffset, gen_blockoffset, mem_o_blockoffset;
+    reg location, r_location,  mem_location;
 
     reg way0_modify, way1_modify;
     reg [INDEX_WIDTH-1:0] way0_read_index, way1_read_index;
@@ -222,14 +218,6 @@ module DataCache #(
     reg [3:0] way0_mask, way1_mask;
 
     reg [STATE_WIDTH-1 : 0] state, next_state;
-/*
-    reg pre_i_valid, pre_o_valid;
-    wire pre_full, pre_empty;
-    reg [`Addr_Width-1:0] pre_i_addr;
-    wire [`Addr_Width-1:0] pre_o_addr;
-    reg [`Data_Width-1:0] pre_i_data;
-    wire [`Data_Width-1:0] pre_o_data;
-*/
     reg wb_i_valid, wb_o_valid;
     wire wb_full, wb_empty, wb_check_same;
     reg [`Addr_Width-1:0] wb_i_addr, wb_check_addr;
@@ -238,23 +226,6 @@ module DataCache #(
     wire [`Data_Width-1:0] wb_o_data, wb_check_data;
     reg [3:0] wb_i_mask;
     wire [3:0] wb_o_mask, wb_check_mask;
-/*
-    fifo_buffer prefetch_buffer (
-        .clk (clk),
-        .rst (rst),
-
-        .empty (pre_empty),
-        .full (pre_full),
-
-        .in_valid (pre_i_valid),
-        .fifo_in_addr (pre_i_addr),
-        .fifo_in_data (pre_i_data),
-
-        .out_valid (pre_o_valid),
-        .fifo_out_addr (pre_o_addr),
-        .fifo_out_data (pre_o_data)
-    );
-*/
     fifo_buffer write_buffer (
         .clk (clk),
         .rst (rst),
@@ -358,11 +329,6 @@ module DataCache #(
         mem_o_tag <= wb_o_addr[BLOCK_OFFSET_WIDTH+INDEX_WIDTH+TAG_WIDTH-1:BLOCK_OFFSET_WIDTH+INDEX_WIDTH];
         mem_o_index <= wb_o_addr[BLOCK_OFFSET_WIDTH+INDEX_WIDTH-1:BLOCK_OFFSET_WIDTH];
         mem_o_blockoffset <= wb_o_addr[BLOCK_OFFSET_WIDTH-1:0];
-        /*
-        pre_o_tag <= pre_o_addr[BLOCK_OFFSET_WIDTH+INDEX_WIDTH+TAG_WIDTH-1:BLOCK_OFFSET_WIDTH+INDEX_WIDTH];
-        pre_o_index <= pre_o_addr[BLOCK_OFFSET_WIDTH+INDEX_WIDTH-1:BLOCK_OFFSET_WIDTH];
-        pre_o_blockoffset <= pre_o_addr[BLOCK_OFFSET_WIDTH-1:0];
-        */
     end
 
     always @ (*) begin
@@ -378,19 +344,6 @@ module DataCache #(
                 location <= ctrl_array[i_index][0] ? 1 : 0;
             end
         endcase
-        /*
-        case ({1'b1, pre_o_tag})
-            {valid_array[pre_o_index][0], tag_array[pre_o_index][0]}: begin
-                pre_location <= 0;
-            end
-            {valid_array[pre_o_index][1], tag_array[pre_o_index][1]}: begin
-                pre_location <= 1;
-            end
-            default: begin
-                pre_location <= 0;
-            end
-        endcase
-        */
         case ({1'b1, mem_o_tag})
             {valid_array[mem_o_index][0], tag_array[mem_o_index][0]}: begin
                 mem_location <= 0;
@@ -422,15 +375,6 @@ module DataCache #(
         way1_read_blockoffset <= i_blockoffset;
         wb_i_valid <= 0;
         wb_o_valid <= 0;
-        /*
-        pre_i_valid <= 0;
-        pre_o_valid <= 0;
-        */
-        /*
-        if (read && write) $display ("Read and write are both valid.\n");
-        if (read && prefetch) $display ("Read and prefetch are both valid.\n");
-        if (write && prefetch) $display ("write and prefetch are both valid.\n");
-        */
         if (read) begin
             if (valid_array[i_index][location] && tag_array[i_index][location] == i_tag) begin
                 $display ("read hit!");
@@ -477,7 +421,7 @@ module DataCache #(
                         end
                     end
                     write: begin
-                        if (wb_full && mem_free) begin
+                        if (wb_full) begin
                             wb_o_valid <= 1;
                             mem_rw_flag <= WRITE;
                             mem_addr <= wb_o_addr;
@@ -488,7 +432,7 @@ module DataCache #(
                         end
                     end
                     default: begin
-                        if (!wb_empty && mem_free) begin
+                        if (!wb_empty) begin
                             wb_o_valid <= 1;
                             mem_rw_flag <= WRITE;
                             mem_addr <= wb_o_addr;
@@ -496,27 +440,9 @@ module DataCache #(
                             mem_o_mask <= wb_o_mask;
                             next_state <= STATE_WRITE;
                             modifyCacheSet();
-                        end /*else if (!pre_empty) begin
-                            $display ("prefetch ready.");
-                            pre_o_valid <= 1;
-                            if (!valid_array[pre_o_index][pre_location] || tag_array[pre_o_index][pre_location] != pre_o_tag) begin
-                                r_i_tag <= pre_o_tag;
-                                r_i_index <= pre_o_index;
-                                r_i_blockoffset <= {BLOCK_OFFSET_WIDTH{1'bx}};
-                                r_location <= pre_location;
-                                next_state <= STATE_READ_N;
-                            end
-                        end*/
+                        end
                     end
                 endcase
-                /*
-                if (prefetch && !pre_full) begin
-                    $display ("prefetch_inqueue");
-                    pre_i_valid <= 1;
-                    pre_i_addr <= pre_addr;
-                    pre_i_data <= {`Data_Width{1'b0}};
-                end
-                */
             end
             STATE_READ_C: begin
                 way0_modify_index <= r_i_index;

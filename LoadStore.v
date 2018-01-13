@@ -27,10 +27,9 @@ module LoadStore(
     input lsm_write,
     input [`Lsm_Bus_Width-1 : 0] lsm_bus,
     // with CDB
-    input [`Reg_Lock_Width-1 : 0] cdb_in_index_alu,
-    input [`Data_Width-1     : 0] cdb_in_data_alu,
-    input [`Reg_Lock_Width-1 : 0] cdb_in_index_lsm,
-    input [`Data_Width-1     : 0] cdb_in_data_lsm,
+    input [`Reg_Lock_Width-1 : 0] cdb_in_index,
+    input [`Data_Width-1     : 0] cdb_in_data,
+    input grnt,
     output reg cdb_out_valid,
     output reg [`Reg_Lock_Width-1 : 0] cdb_out_index,
     output reg [`Data_Width-1      : 0] cdb_out_data,
@@ -39,8 +38,6 @@ module LoadStore(
     output buffer_stall,
     input rob_stall,
     // with DataCache
-    output reg dcache_prefetch,
-    output reg [`Addr_Width-1 : 0]  dcache_pre_addr,
     output reg dcache_read,
     output reg [`Addr_Width-1 : 0] dcache_read_addr,
     input  dcache_read_done,
@@ -73,42 +70,21 @@ module LoadStore(
 
     integer i;
     always @ (*) begin
-        $display ("mark:loadStore2");
         for (i = 0; i < Lsm_Queue_Entry; i = i + 1) begin
-            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && cdb_in_index_alu == buffer[i][`Lsm_Lock1_Interval]) begin
+            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && cdb_in_index == buffer[i][`Lsm_Lock1_Interval]) begin
                 buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
-                buffer[i][`Lsm_Data1_Interval] <= cdb_in_data_alu;
+                buffer[i][`Lsm_Data1_Interval] <= cdb_in_data;
             end
-            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_alu != `Reg_No_Lock && cdb_in_index_alu == buffer[i][`Lsm_Lock2_Interval]) begin
+            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index != `Reg_No_Lock && cdb_in_index == buffer[i][`Lsm_Lock2_Interval]) begin
                 buffer[i][`Lsm_Lock2_Interval] <= `Reg_No_Lock;
-                buffer[i][`Lsm_Data2_Interval] <= cdb_in_data_alu;
+                buffer[i][`Lsm_Data2_Interval] <= cdb_in_data;
             end
-            if (queue_op[i] != `NOP && cdb_in_index_alu != `Reg_No_Lock && queue_lock[i] == cdb_in_index_alu) begin
-                queue_data[i] <= cdb_in_data_alu;
+            if (queue_op[i] != `NOP && cdb_in_index != `Reg_No_Lock && queue_lock[i] == cdb_in_index) begin
+                queue_data[i] <= cdb_in_data;
                 queue_lock[i] <= `Reg_No_Lock;
             end
         end
     end
-
-    always @ (*) begin
-        $display ("mark:loadStore1");
-        for (i = 0; i < Lsm_Queue_Entry; i = i + 1) begin
-            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && cdb_in_index_lsm == buffer[i][`Lsm_Lock1_Interval]) begin
-                buffer[i][`Lsm_Lock1_Interval] <= `Reg_No_Lock;
-                buffer[i][`Lsm_Data1_Interval] <= cdb_in_data_lsm;
-            end
-            if (buffer[i][`Lsm_Op_Interval] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && cdb_in_index_lsm == buffer[i][`Lsm_Lock2_Interval]) begin
-                buffer[i][`Lsm_Lock2_Interval] <= `Reg_No_Lock;
-                buffer[i][`Lsm_Data2_Interval] <= cdb_in_data_lsm;
-            end
-            if (queue_op[i] != `NOP && cdb_in_index_lsm != `Reg_No_Lock && queue_lock[i] == cdb_in_index_lsm) begin
-                queue_data[i] <= cdb_in_data_lsm;
-                queue_lock[i] <= `Reg_No_Lock;
-            end
-        end
-    end
-
-
 
     assign buffer_stall = (bcounter >= Lsm_Queue_Entry - 1);
     assign buf_que = (bcounter && (qcounter < Lsm_Queue_Entry));
@@ -126,7 +102,7 @@ module LoadStore(
     assign out_lock = queue_lock[qread_ptr];
 
     wire q_read_enable;
-    assign q_read_enable = qcounter && ( out_lock == `Reg_No_Lock &&
+    assign q_read_enable = grnt && qcounter && ( out_lock == `Reg_No_Lock &&
                                 ((!rob_stall && out_op) || (!out_op && dcache_read_done)) );
 
     task getData;
@@ -169,7 +145,6 @@ module LoadStore(
             bread_ptr <= 0;
             qwrite_ptr <= 0;
             qread_ptr <= 0;
-            dcache_prefetch <= 0;
             dcache_read <= 0;
         end else begin
             if (lsm_write) begin
@@ -181,9 +156,6 @@ module LoadStore(
                 buffer[bread_ptr]      <= {(`Lsm_Bus_Width){1'b0}};
                 bread_ptr              <= bread_ptr + 1;
                 bcounter <= bcounter - 1;
-
-                dcache_prefetch <= 1;
-                dcache_pre_addr <= trans_addr;
 
                 queue_op[qwrite_ptr]   <= trans_op;
                 queue_aim[qwrite_ptr]  <= trans_aim;
@@ -210,7 +182,6 @@ module LoadStore(
     end
 
     always @ (*) begin
-        $display ("mark:loadStore0");
         cdb_out_valid <= 0;
         dcache_read <= 0;
         cdb_out_index <= `Reg_No_Lock;

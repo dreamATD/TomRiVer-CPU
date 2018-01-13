@@ -40,7 +40,7 @@ module InstCache #(
     output reg o_mem_valid,
     output reg [ADDRESS_WIDTH-1 : 0] o_mem_address,
     input i_mem_valid,
-    output [DATA_WIDTH-1 : 0] i_mem_data,
+    input [DATA_WIDTH-1 : 0] i_mem_data,
     // with Decoder
     output reg o_valid,
     output reg [`Inst_Addr_Width-1:0] o_data_addr,

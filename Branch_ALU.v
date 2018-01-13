@@ -33,7 +33,7 @@ module Branch_ALU (
 
     output reg cdb_out_valid,
     input grnt,
-    output reg [`ROB_Entry_Width-1 : 0] cdb_out_index,
+    output reg [`Reg_Lock_Width-1 : 0] cdb_out_index,
     output reg [`Data_Width-1:0] cdb_out_result
 );
 
